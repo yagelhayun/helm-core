@@ -1,0 +1,11 @@
+port: 5000
+
+resources:
+  cpu: 1
+  memory: 1Gi
+
+replicas: 10
+
+image:
+  url: ericu
+  tag: kakkkkkkkkki

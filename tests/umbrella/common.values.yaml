@@ -1,0 +1,51 @@
+global:
+  port: 8080
+
+  envFrom:
+    secrets:
+      fire-devops-push: {}
+    configMaps:
+      common: {}
+
+  volumes:
+    secrets:
+      fire-devops-push:
+        mountPath: /tmp
+        files:
+          - .dockerconfigjson
+    empty:
+      kafka-writable-mount:
+        mountPath: /app
+
+  env:
+    secrets:
+      devops-switchover:
+        - key: PORTAL_API_TOKEN
+          variable: test1
+
+common:
+  configMap:
+    data:
+      IS_CLOUD: "true"
+      KafkaTempKeystoreLocation: '{{ index .Values.global.volumes.secrets "fire-devops-push" "mountPath" }}'
+      PORT: "{{ .Values.global.port }}"
+
+worker:
+  port: 9999
+  
+  configMap:
+    data:
+      mode: worker
+  
+  image:
+    url: worker
+
+master:
+  port: 1111
+
+  configMap:
+    data:
+      mode: master
+  
+  image:
+    url: master

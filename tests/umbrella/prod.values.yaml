@@ -1,0 +1,44 @@
+global:
+  volumes:
+    secrets:
+      fire-devops-push:
+        mountPath: /tmp
+        files:
+          - .dockerconfigjson
+
+common:
+  configMap:
+    data:
+      isPgConnectionWithSSL: "true"
+
+  regions:
+    us-east-1:
+      configMap:
+        data:
+          kafkaAddress: "todolist-p-broker-1.kafka.us-east-1.com:9092"
+          dbConnectionString: "jdbc:postgresql://todolist-p.pgsql.us-east-1.com:5432/todolist"
+    us-west-1:
+      configMap:
+        data:
+          kafkaAddress: "todolist-p-broker-1.kafka.us-west-1.com:9092"
+          dbConnectionString: "jdbc:postgresql://todolist-p.pgsql.us-west-1.com:5432/todolist"
+
+worker:
+  replicas: 5
+
+  resources:
+    cpu: 1
+    memory: 4Gi
+
+  image:
+    tag: staging
+
+master:
+  replicas: 2
+
+  resources:
+    cpu: 3
+    memory: 8Gi
+
+  image:
+    tag: dev

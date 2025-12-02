@@ -1,0 +1,13 @@
+{{- $config := include "core.general.config" . | fromYaml }}
+{{- $context := merge (dict "$" $) $config }}
+kind: Service
+apiVersion: v1
+metadata:
+  name: {{ include "core.service.name" $context }}
+  labels: {{ include "core.common.labels" $context | nindent 4 }}
+spec:
+  ports:
+  - protocol: TCP
+    port: {{ .Values.port }}
+    targetPort: {{ .Values.port }}
+  selector: {{ include "core.common.labels" $context | nindent 4 }}

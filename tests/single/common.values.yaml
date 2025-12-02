@@ -1,0 +1,67 @@
+activeRegion: us-west-1
+
+port: 5000
+
+resources:
+  cpu: 250m
+  memory: 500Mi
+
+replicas: 3
+
+volumes:
+  secrets:
+    fire-devops-push:
+      mountPath: /
+
+envFrom:
+  secrets:
+    fire-devops-push: {}
+  configMaps:
+    fire-devops-push: {}
+
+env:
+  secrets:
+    devops-switchover:
+      - key: PORTAL_API_TOKEN
+        variable: test1
+      - key: PORTAL_API_TOKEN
+        variable: test2
+  configMaps:
+    devops-switchover:
+      - key: DB_IDS
+        variable: test3
+
+configMap:
+  data:
+    KEY1: "VALUE"
+    KEY2: "4565"
+    KEY3: "0/10 * * * *"
+    PORT: "{{ .Values.port }}"
+
+regions:
+  us-east-1:
+    configMap:
+      data:
+        ENDPOINT: "storage.us-east-1.com"
+        URL: "sso.us-east-1.com"
+  us-west-1:
+    configMap:
+      data:
+        ENDPOINT: "storage.us-west-1.com"
+        URL: "sso.us-west-1.com"
+
+probes:
+  readiness:
+    httpGet:
+      path: /whoami
+      port: 3000
+      scheme: HTTP
+  liveness:
+    exec:
+      command:
+        - echo zorem
+    failureThreshold: 1
+    initialDelaySeconds: 15
+    periodSeconds: 15
+    successThreshold: 1
+    timeoutSeconds: 30

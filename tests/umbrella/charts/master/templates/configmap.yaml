@@ -1,0 +1,12 @@
+{{- $config := include "core.general.config" . | fromYaml }}
+{{- $context := merge (dict "$" $) $config }}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "core.configmap.name" $context }}
+  labels: {{ include "core.common.labels" $context | nindent 4 }}
+data:
+{{- $configMapData := required "Missing .Values.configMap.data property" ($context.configMap).data }}
+{{- range $key, $value := $configMapData }}
+  {{ $key }}: {{ $value | quote }}
+{{- end }}
