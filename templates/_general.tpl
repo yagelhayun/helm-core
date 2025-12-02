@@ -9,7 +9,7 @@
 
 {{- define "core.general.mergeRegionConfig" -}}
 {{- $ := (index . "$") -}}
-{{ $desiredRegion := required "Missing region property" $.Values.global.region }}
+{{ $desiredRegion := required "Missing region property" ($.Values.global).region }}
 {{ $commonValues := .valuesScope }}
 {{ $regions := toYaml (.valuesScope).regions | fromYaml }} # Here we create a copy of the regions object so we won't create an infinite loop afterwards (merging the a sub-object in the root object)
 {{- if empty $regions }}
