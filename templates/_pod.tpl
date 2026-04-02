@@ -69,7 +69,6 @@
 {{/*
   * Pod annotations
   * @param data
-  * @param dynatrace
 */}}
 {{- define "core.pod.annotations" -}}
 {{- if (.configMap).data }}
