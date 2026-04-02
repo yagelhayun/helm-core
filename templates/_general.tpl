@@ -9,7 +9,7 @@
 
 {{- define "core.general.mergeRegionConfig" -}}
 {{- $ := (index . "$") -}}
-{{ $desiredRegion := required "Missing region property" ($.Values.global).region }}
+{{ $desiredRegion := ($.Values.global).region }}
 {{ $commonValues := .valuesScope }}
 {{/* Create a copy of regions so merging the sub-object back into the root doesn't cause an infinite loop */}}
 {{ $regions := toYaml (.valuesScope).regions | fromYaml }}

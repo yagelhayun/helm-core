@@ -43,7 +43,7 @@
 {{/*
   * Renders initContainers by delegating to core.container.render.
   * Pod-level volumes used by init containers must be declared in the root volumes config.
-  * @param initContainers - list of init container configs (name required)
+  * @param initContainers - list of init container configs
 */}}
 {{- define "core.pod.initContainers" }}
 {{- range .initContainers }}

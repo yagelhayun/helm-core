@@ -12,6 +12,5 @@ commit: {{ ternary (int .) (.) $isNumber | quote }}
 {{- end }}
 
 {{- define "core.deployment.replicas" -}}
-{{- $replicas := required "Missing replicas property" .replicas }}
 {{- ternary .replicas 0 (or (not .activeRegion) (eq .activeRegion .region)) }}
 {{- end }}

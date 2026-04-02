@@ -6,7 +6,6 @@ metadata:
   name: {{ include "core.configmap.name" $context }}
   labels: {{ include "core.common.labels" $context | nindent 4 }}
 data:
-{{- $configMapData := required "Missing .Values.configMap.data property" ($context.configMap).data }}
-{{- range $key, $value := $configMapData }}
+{{- range $key, $value := ($context.configMap).data }}
   {{ $key }}: {{ $value | quote }}
 {{- end }}

@@ -6,7 +6,6 @@
 {{- define "core.container.volumeMounts" -}}
 {{- range $typeName, $resources := .volumes }}
 {{- range $resourceName, $resourceParams := $resources }}
-{{- $mountPath := required "Missing mountPath property" $resourceParams.mountPath }}
 {{- if $resourceParams.files }}
 {{- range $variable := $resourceParams.files }}
 - name: {{ $resourceName }}
@@ -69,7 +68,6 @@
 {{- $refType := printf "%sKeyRef" $singularType }}
 {{- range $variables }}
 {{- include "core.cluster.checkIfKeyExists" (dict "$" $ "resource" $resource "key" .key) }}
-{{- $variable := required (printf "Resource \"%s\" of type %s with key \"%s\" must include a variable property" $resourceName $singularType .key) .variable }}
 - name: {{ .variable }}
   valueFrom:
     {{ $refType }}:
@@ -85,18 +83,16 @@
   * @param resources
 */}}
 {{- define "core.container.resources" -}}
-{{- $cpu := required "Missing resources.cpu property" (.resources).cpu }}
-{{- $memory := required "Missing resources.memory property" (.resources).memory }}
 {{- $unitsRegex := "([a-z]|[A-Z])+$" }}
 {{- $floatRegex := "^[0-9]+(\\.[0-9]+)?" }}
-{{- $cpuAmount := (regexFind $floatRegex ($cpu | toString)) | float64 }}
-{{- $cpuUnit := regexFind $unitsRegex ($cpu | toString) }}
+{{- $cpuAmount := (regexFind $floatRegex ((.resources).cpu | toString)) | float64 }}
+{{- $cpuUnit := regexFind $unitsRegex ((.resources).cpu | toString) }}
 requests:
   cpu: {{ (printf "%g%s" $cpuAmount $cpuUnit) | squote }}
-  memory: {{ $memory | squote }}
+  memory: {{ (.resources).memory | squote }}
 limits:
   cpu: {{ (printf "%g%s" (mulf $cpuAmount ((.resources).limitMultiplier | default 4 | float64)) $cpuUnit) | squote }}
-  memory: {{ $memory | squote }}
+  memory: {{ (.resources).memory | squote }}
 {{- end }}
 
 {{/*
@@ -107,14 +103,12 @@ limits:
 {{- $port := .port }}
 {{- with .probe }}
 {{- with .httpGet }}
-{{- $port := required "Missing port property" $port }}
 httpGet:
   path: {{ .path }}
   port: {{ $port }}
   scheme: {{ .scheme | default "HTTP" }}
 {{- end }}
 {{- with .exec }}
-{{- $command := required "Missing command property" .command }}
 exec: {{ toYaml .command | nindent 2 }}
 {{- end }}
 failureThreshold: {{ .failureThreshold | default 3 }}
@@ -204,7 +198,7 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{/*
   * Renders additional sidecar containers by delegating to core.container.render.
   * Pod-level volumes used by sidecars must be declared in the root volumes config.
-  * @param sidecars - list of sidecar container configs (name required)
+  * @param sidecars - list of sidecar container configs
 */}}
 {{- define "core.container.sidecars" }}
 {{- $ := (index . "$") }}
@@ -221,6 +215,5 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- define "core.container.image" }}
 {{- $imageURL := (.image).url | default ((.global).image).url }}
 {{- $imageTag := (.image).tag | default ((.global).image).tag | default "latest" }}
-{{- $url := required "Missing image url property" $imageURL }}
 {{- printf "%s:%s" $imageURL $imageTag }}
 {{- end }}
