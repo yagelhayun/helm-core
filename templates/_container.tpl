@@ -5,7 +5,6 @@
 */}}
 {{- define "core.container.volumeMounts" -}}
 {{- range $typeName, $resources := .volumes }}
-{{- if ne $typeName "empty" }}
 {{- range $resourceName, $resourceParams := $resources }}
 {{- $mountPath := required "Missing mountPath property" $resourceParams.mountPath }}
 {{- if ne (typeOf $resourceParams.mountPath) "string" }}
@@ -20,7 +19,6 @@
 {{- else }}
 - name: {{ $resourceName }}
   mountPath: {{ $resourceParams.mountPath }}
-{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -102,8 +100,8 @@
 requests:
   cpu: {{ (printf "%g%s" $cpuAmount $cpuUnit) | squote }}
   memory: {{ $memory | squote }}
-limits: 
-  cpu: {{ (printf "%g%s" (mulf $cpuAmount 4) $cpuUnit) | squote }}
+limits:
+  cpu: {{ (printf "%g%s" (mulf $cpuAmount ((.resources).limitMultiplier | default 4 | float64)) $cpuUnit) | squote }}
   memory: {{ $memory | squote }}
 {{- end }}
 
@@ -157,6 +155,77 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- define "core.container.livenessProbe" }}
 {{- $probeContext := merge (dict "probe" .probes.liveness) . }}
 {{- include "core.container.probes" $probeContext }}
+{{- end }}
+
+{{/*
+  * Renders a startup probe
+*/}}
+{{- define "core.container.startupProbe" }}
+{{- $probeContext := merge (dict "probe" .probes.startup) . }}
+{{- include "core.container.probes" $probeContext }}
+{{- end }}
+
+{{/*
+  * Renders a single container as a list item (- name: ...).
+  * Used for the main container, sidecars, and init containers.
+  * Falls back to the chart name when .name is not set (main container case).
+  * @param name            - container name (optional; defaults to chart name)
+  * @param image           - image config
+  * @param global.image    - global image fallback
+  * @param port            - optional container port number
+  * @param portName        - optional port name (default: "http")
+  * @param command / args  - optional entrypoint overrides
+  * @param envFrom / env   - environment configuration
+  * @param volumes         - for volumeMounts
+  * @param resources       - cpu / memory / limitMultiplier
+  * @param probes          - readiness / liveness / startup
+*/}}
+{{- define "core.container.render" }}
+- name: {{ .name | default (include "core.general.name" .) }}
+  image: {{ include "core.container.image" . }}
+  {{- if .port }}
+  ports:
+  - containerPort: {{ .port }}
+    name: {{ .portName | default "http" }}
+    protocol: TCP
+  {{- end }}
+  {{- with .command }}
+  command: {{ toJson . }}
+  {{- end }}
+  {{- with .args }}
+  args: {{ toJson . }}
+  {{- end }}
+  {{- with (include "core.container.envFrom" .) }}
+  envFrom: {{- . | indent 4 }}
+  {{- end }}
+  resources: {{- include "core.container.resources" . | indent 4 }}
+  {{- with (include "core.container.env" .) }}
+  env: {{- . | indent 4 }}
+  {{- end }}
+  {{- with (include "core.container.volumeMounts" .) }}
+  volumeMounts: {{- . | indent 4 }}
+  {{- end }}
+  {{- if (.probes).readiness }}
+  readinessProbe: {{- include "core.container.readinessProbe" . | indent 4 }}
+  {{- end }}
+  {{- if (.probes).liveness }}
+  livenessProbe: {{- include "core.container.livenessProbe" . | indent 4 }}
+  {{- end }}
+  {{- if (.probes).startup }}
+  startupProbe: {{- include "core.container.startupProbe" . | indent 4 }}
+  {{- end }}
+  imagePullPolicy: {{ (.image).pullPolicy | default ((.global).image).pullPolicy | default "IfNotPresent" }}
+{{- end }}
+
+{{/*
+  * Renders additional sidecar containers by delegating to core.container.render.
+  * Pod-level volumes used by sidecars must be declared in the root volumes config.
+  * @param sidecars - list of sidecar container configs (name required)
+*/}}
+{{- define "core.container.sidecars" }}
+{{- range .sidecars }}
+{{- include "core.container.render" . }}
+{{- end }}
 {{- end }}
 
 {{/*

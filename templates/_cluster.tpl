@@ -7,12 +7,15 @@
   * Running "helm template" or "helm install --dry-run" won't connect to the cluster,
   * so lookup returns an empty map. We can only use lookup during a real deployment.
   *
-  * Uses $.Release.IsRender (Helm 3.13+) which is true during "helm template" / --dry-run.
-  * The ignoreLookup global flag can be set to "true" to bypass cluster lookups explicitly.
+  * Uses $.Release.IsRender (Helm 3.13+) when available. On older versions it falls back to
+  * checking whether the release name is the default "RELEASE-NAME" placeholder used by
+  * "helm template". The ignoreLookup global flag can be set to "true" to bypass cluster
+  * lookups explicitly (useful in tests and local rendering).
 */}}
 {{- define "core.isRealDeployment" -}}
 {{- $ := (index . "$") }}
-{{- and (not $.Release.IsRender) (ne (toString ($.Values.global).ignoreLookup) "true") -}}
+{{- $isRender := or $.Release.IsRender (eq (upper $.Release.Name) "RELEASE-NAME") -}}
+{{- and (not $isRender) (ne (toString ($.Values.global).ignoreLookup) "true") -}}
 {{- end }}
 
 {{/*

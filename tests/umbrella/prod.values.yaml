@@ -29,6 +29,7 @@ worker:
   resources:
     cpu: 1
     memory: 4Gi
+    limitMultiplier: 2
 
   image:
     tag: staging

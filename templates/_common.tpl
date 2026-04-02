@@ -16,5 +16,8 @@ type: Recreate
 {{- end }}
 
 {{- define "core.common.labels" -}}
+{{- $ := (index . "$") -}}
 app.kubernetes.io/name: {{ include "core.general.name" . | quote }}
+helm.sh/chart: {{ printf "%s-%s" $.Chart.Name $.Chart.Version | quote }}
+app.kubernetes.io/managed-by: {{ $.Release.Service | quote }}
 {{- end }}

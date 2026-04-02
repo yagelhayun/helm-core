@@ -26,3 +26,15 @@
 {{- $globalValues := include "core.general.mergeRegionConfig" (dict "$" $ "valuesScope" .Values.global) | fromYaml }}
 {{- omit (merge $rootValues $globalValues) "global" "regions" | toYaml }}
 {{- end }}
+
+{{/*
+  * NOTE: There is intentionally no "core.general.context" helper.
+  *
+  * Building the full context dict requires holding a live reference to the Helm
+  * root context ($), which cannot be serialized through toYaml/fromYaml (the only
+  * way to return values from a named template). The two-line setup below is therefore
+  * the minimal necessary boilerplate in every consumer template:
+  *
+  *   {{- $config := include "core.general.config" . | fromYaml }}
+  *   {{- $context := merge (dict "$" $) $config }}
+*/}}

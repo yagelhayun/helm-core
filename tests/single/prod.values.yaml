@@ -3,9 +3,12 @@ port: 5000
 resources:
   cpu: 1
   memory: 1Gi
+  limitMultiplier: 2
 
 replicas: 10
 
+revisionHistoryLimit: 3
+
 image:
-  url: ericu
-  tag: kakkkkkkkkki
+  url: myrepo/myapp
+  tag: v1.2.3

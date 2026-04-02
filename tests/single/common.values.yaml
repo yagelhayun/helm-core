@@ -1,6 +1,11 @@
+global:
+  region: us-west-1
+  ignoreLookup: "true"
+
 activeRegion: us-west-1
 
 port: 5000
+portName: api
 
 resources:
   cpu: 250m
@@ -8,10 +13,18 @@ resources:
 
 replicas: 3
 
+image:
+  url: myrepo/myapp
+  pullSecrets:
+    - my-registry-secret
+
 volumes:
   secrets:
     fire-devops-push:
       mountPath: /
+  empty:
+    kafka-writable-mount:
+      mountPath: /kafka
 
 envFrom:
   secrets:
@@ -59,9 +72,38 @@ probes:
   liveness:
     exec:
       command:
-        - echo zorem
+        - echo
+        - alive
     failureThreshold: 1
     initialDelaySeconds: 15
     periodSeconds: 15
     successThreshold: 1
     timeoutSeconds: 30
+  startup:
+    httpGet:
+      path: /health
+      port: 3000
+    failureThreshold: 30
+    periodSeconds: 10
+
+initContainers:
+  - name: db-migration
+    image:
+      url: myrepo/migrator
+      tag: "1.0"
+    command: ["/bin/sh"]
+    args: ["-c", "echo running migration && sleep 2"]
+    resources:
+      cpu: 100m
+      memory: 128Mi
+
+sidecars:
+  - name: log-shipper
+    image:
+      url: fluent/fluent-bit
+      tag: "2.2"
+    port: 2020
+    portName: metrics
+    resources:
+      cpu: 50m
+      memory: 64Mi

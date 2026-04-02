@@ -1,5 +1,11 @@
 global:
+  region: us-west-1
   port: 8080
+  ignoreLookup: "true"
+
+  image:
+    pullSecrets:
+      - global-registry-secret
 
   envFrom:
     secrets:
@@ -15,7 +21,7 @@ global:
           - .dockerconfigjson
     empty:
       kafka-writable-mount:
-        mountPath: /app
+        mountPath: /kafka
 
   env:
     secrets:
@@ -32,20 +38,33 @@ common:
 
 worker:
   port: 9999
-  
+  portName: grpc
+
   configMap:
     data:
       mode: worker
-  
+
   image:
     url: worker
 
+  initContainers:
+    - name: wait-for-kafka
+      image:
+        url: busybox
+        tag: "1.36"
+      command: ["/bin/sh"]
+      args: ["-c", "echo waiting for kafka"]
+      resources:
+        cpu: 50m
+        memory: 64Mi
+
 master:
   port: 1111
+  portName: api
 
   configMap:
     data:
       mode: master
-  
+
   image:
     url: master

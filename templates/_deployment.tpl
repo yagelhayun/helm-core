@@ -5,9 +5,10 @@
 {{- define "core.deployment.labels" -}}
 {{- include "core.common.labels" . -}}
 {{- $ := (index . "$") }}
-{{- $commit := required "Missing commit property" $.Values.global.commit }}
-{{- $isNumber := or (typeIs "float64" $commit) (typeIs "int64" $commit) }}
-commit: {{ ternary (int $commit) ($commit) $isNumber | quote }}
+{{- with $.Values.global.commit }}
+{{- $isNumber := or (typeIs "float64" .) (typeIs "int64" .) }}
+commit: {{ ternary (int .) (.) $isNumber | quote }}
+{{- end }}
 {{- end }}
 
 {{- define "core.deployment.replicas" -}}

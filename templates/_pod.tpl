@@ -8,6 +8,7 @@
 {{- $defaultPermissions := 420 }}
 {{- with .volumes }}
 {{- range $resourceName, $resourceParams := .configMaps }}
+{{- $configMap := include "core.configmap.get" (dict "$" $ "name" $resourceName) | fromYaml }}
 - name: {{ $resourceName }}
   configMap:
     name: {{ $resourceName }}
@@ -24,6 +25,29 @@
 - name: {{ $volumeName }}
   emptyDir: {}
 {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+  * Render imagePullSecrets from image.pullSecrets or global.image.pullSecrets
+  * @param image.pullSecrets
+  * @param global.image.pullSecrets
+*/}}
+{{- define "core.pod.imagePullSecrets" -}}
+{{- $pullSecrets := (.image).pullSecrets | default ((.global).image).pullSecrets }}
+{{- range $pullSecrets }}
+- name: {{ . }}
+{{- end }}
+{{- end }}
+
+{{/*
+  * Renders initContainers by delegating to core.container.render.
+  * Pod-level volumes used by init containers must be declared in the root volumes config.
+  * @param initContainers - list of init container configs (name required)
+*/}}
+{{- define "core.pod.initContainers" }}
+{{- range .initContainers }}
+{{- include "core.container.render" . }}
 {{- end }}
 {{- end }}
 
