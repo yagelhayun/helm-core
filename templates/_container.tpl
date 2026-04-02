@@ -7,9 +7,6 @@
 {{- range $typeName, $resources := .volumes }}
 {{- range $resourceName, $resourceParams := $resources }}
 {{- $mountPath := required "Missing mountPath property" $resourceParams.mountPath }}
-{{- if ne (typeOf $resourceParams.mountPath) "string" }}
-{{- fail "mountPath must be a string" }}
-{{- end }}
 {{- if $resourceParams.files }}
 {{- range $variable := $resourceParams.files }}
 - name: {{ $resourceName }}
@@ -73,9 +70,6 @@
 {{- range $variables }}
 {{- include "core.cluster.checkIfKeyExists" (dict "$" $ "resource" $resource "key" .key) }}
 {{- $variable := required (printf "Resource \"%s\" of type %s with key \"%s\" must include a variable property" $resourceName $singularType .key) .variable }}
-{{- if ne (typeOf .variable) "string" }}
-{{- fail (printf "Resource \"%s\" of type %s contains a non-string variable \"%v\"" $resourceName $singularType .variable) }}
-{{- end }}
 - name: {{ .variable }}
   valueFrom:
     {{ $refType }}:
@@ -112,20 +106,10 @@ limits:
 {{- define "core.container.probes" }}
 {{- $port := .port }}
 {{- with .probe }}
-{{- if and (empty .httpGet) (empty .exec) }}
-{{- fail "Missing httpGet or exec" }}
-{{- end }}
-{{- if and (not (empty .httpGet)) (not (empty .exec)) }}
-{{- fail "Cannot define both httpGet and exec" }}
-{{- end }}
 {{- with .httpGet }}
 {{- $port := required "Missing port property" $port }}
-{{- $path := required "Missing path property" .path }}
-{{- if ne (typeOf $path) "string" }}
-{{- fail ".path must be a string" }}
-{{- end }}
 httpGet:
-  path: {{ $path }}
+  path: {{ .path }}
   port: {{ $port }}
   scheme: {{ .scheme | default "HTTP" }}
 {{- end }}
@@ -223,8 +207,9 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   * @param sidecars - list of sidecar container configs (name required)
 */}}
 {{- define "core.container.sidecars" }}
+{{- $ := (index . "$") }}
 {{- range .sidecars }}
-{{- include "core.container.render" . }}
+{{- include "core.container.render" (merge (dict "$" $) .) }}
 {{- end }}
 {{- end }}
 
