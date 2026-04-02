@@ -3,25 +3,16 @@
   *
   * Why do we need this?
   *
-  * When using the lookup command, it needs access to a k8s cluster. At the time of writing this,
-  * running "helm template", "helm install --dry-run" etc. won't actually connect to the cluster,
-  * and the lookup command will return an empty map. Therefore, we can only use the lookup command
-  * when we are actually running a real deployment.
-  * 
-  * Why did we implement this check this way?
+  * When using the lookup command, it needs access to a k8s cluster.
+  * Running "helm template" or "helm install --dry-run" won't connect to the cluster,
+  * so lookup returns an empty map. We can only use lookup during a real deployment.
   *
-  * The reason we had to compare the $.Release.Name to this weird "RELEASE-NAME" value is that
-  * again, at the time of writing this, $.Release.IsUpgrade / $.Release.IsInstall don't work reliably,
-  * so we had to use another method. We figured using another field from $.Release would help
-  * since $.Release is only relevant when actually releasing (installing/upgrading) the chart, So
-  * we decided to simply use the $.Release.Name field. When you deploy the chart, you provide an
-  * actual name for the release, and since the default value is "RELEASE-NAME", by checking this we 
-  * can make sure that a release name wasn't supplied and therefore this is probably a test run using
-  * "helm template", "helm install --dry-run" etc.
+  * Uses $.Release.IsRender (Helm 3.13+) which is true during "helm template" / --dry-run.
+  * The ignoreLookup global flag can be set to "true" to bypass cluster lookups explicitly.
 */}}
 {{- define "core.isRealDeployment" -}}
 {{- $ := (index . "$") }}
-{{- and (ne (upper $.Release.Name) "RELEASE-NAME") (ne (toString ($.Values.global).ignoreLookup) "true") -}}
+{{- and (not $.Release.IsRender) (ne (toString ($.Values.global).ignoreLookup) "true") -}}
 {{- end }}
 
 {{/*

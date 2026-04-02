@@ -11,7 +11,8 @@
 {{- $ := (index . "$") -}}
 {{ $desiredRegion := required "Missing region property" ($.Values.global).region }}
 {{ $commonValues := .valuesScope }}
-{{ $regions := toYaml (.valuesScope).regions | fromYaml }} # Here we create a copy of the regions object so we won't create an infinite loop afterwards (merging the a sub-object in the root object)
+{{/* Create a copy of regions so merging the sub-object back into the root doesn't cause an infinite loop */}}
+{{ $regions := toYaml (.valuesScope).regions | fromYaml }}
 {{- if empty $regions }}
 {{ tpl ($commonValues | toYaml) $ }}
 {{- else }}

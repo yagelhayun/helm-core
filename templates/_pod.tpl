@@ -49,6 +49,6 @@
 */}}
 {{- define "core.pod.annotations" -}}
 {{- if (.configMap).data }}
-checksum/config: {{ join "' " .configMap.data | sha256sum }}
+checksum/config: {{ .configMap.data | toYaml | sha256sum }}
 {{- end }}
 {{- end }}

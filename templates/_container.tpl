@@ -4,8 +4,9 @@
   * @param volumes
 */}}
 {{- define "core.container.volumeMounts" -}}
-{{- range $resourceType := .volumes }}
-{{- range $resourceName, $resourceParams := $resourceType }}
+{{- range $typeName, $resources := .volumes }}
+{{- if ne $typeName "empty" }}
+{{- range $resourceName, $resourceParams := $resources }}
 {{- $mountPath := required "Missing mountPath property" $resourceParams.mountPath }}
 {{- if ne (typeOf $resourceParams.mountPath) "string" }}
 {{- fail "mountPath must be a string" }}
@@ -13,12 +14,13 @@
 {{- if $resourceParams.files }}
 {{- range $variable := $resourceParams.files }}
 - name: {{ $resourceName }}
-  mountPath: {{ printf "%s/%s" $resourceParams.mountPath $variable}}
+  mountPath: {{ printf "%s/%s" $resourceParams.mountPath $variable }}
   subPath: {{ $variable }}
 {{- end }}
 {{- else }}
 - name: {{ $resourceName }}
   mountPath: {{ $resourceParams.mountPath }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -74,7 +76,7 @@
 {{- include "core.cluster.checkIfKeyExists" (dict "$" $ "resource" $resource "key" .key) }}
 {{- $variable := required (printf "Resource \"%s\" of type %s with key \"%s\" must include a variable property" $resourceName $singularType .key) .variable }}
 {{- if ne (typeOf .variable) "string" }}
-{{- fail (printf "Resource \"%s\" of type %s contains a non-string variable \"%d\"" $resourceName $singularType (int .variable)) }}
+{{- fail (printf "Resource \"%s\" of type %s contains a non-string variable \"%v\"" $resourceName $singularType .variable) }}
 {{- end }}
 - name: {{ .variable }}
   valueFrom:
@@ -94,7 +96,7 @@
 {{- $cpu := required "Missing resources.cpu property" (.resources).cpu }}
 {{- $memory := required "Missing resources.memory property" (.resources).memory }}
 {{- $unitsRegex := "([a-z]|[A-Z])+$" }}
-{{- $floatRegex := "^[0-9]+(.[0-9]+)?" }}
+{{- $floatRegex := "^[0-9]+(\\.[0-9]+)?" }}
 {{- $cpuAmount := (regexFind $floatRegex ($cpu | toString)) | float64 }}
 {{- $cpuUnit := regexFind $unitsRegex ($cpu | toString) }}
 requests:
