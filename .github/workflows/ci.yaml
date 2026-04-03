@@ -20,10 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
+      - name: Build dependencies
+        run: helm dependency build
+        working-directory: tests/single
       - name: Template
         run: >-
           helm template core-test-single .
-            --dependency-update
             -f common.values.yaml
             -f prod.values.yaml
         working-directory: tests/single
@@ -34,10 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: azure/setup-helm@v4
+      - name: Build dependencies
+        run: helm dependency build
+        working-directory: tests/umbrella
       - name: Template
         run: >-
           helm template core-test-umbrella .
-            --dependency-update
             -f common.values.yaml
             -f prod.values.yaml
         working-directory: tests/umbrella
