@@ -4,7 +4,7 @@ templates:
 tests:
   - it: uses configured replicas when activeRegion matches current region
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     # common.values.yaml: activeRegion=us-west-1, global.region=us-west-1, replicas=3
     asserts:
       - equal:
@@ -13,7 +13,7 @@ tests:
 
   - it: uses 0 replicas when activeRegion does not match current region
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     set:
       global.region: us-east-1
       # activeRegion remains us-west-1 from common.values.yaml

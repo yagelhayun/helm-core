@@ -4,8 +4,8 @@ templates:
 tests:
   - it: renders image as url:tag
     values:
-      - common.values.yaml
-      - prod.values.yaml
+      - ../common.values.yaml
+      - ../prod.values.yaml
     # image.url=myrepo/myapp, prod image.tag=v1.2.3
     asserts:
       - equal:
@@ -14,7 +14,7 @@ tests:
 
   - it: defaults image tag to latest when not specified
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     # common.values.yaml has no image.tag
     asserts:
       - equal:
@@ -23,7 +23,7 @@ tests:
 
   - it: renders containerPort from port value
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     # port=5000
     asserts:
       - equal:
@@ -32,7 +32,7 @@ tests:
 
   - it: uses portName value for port name
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     # portName=api
     asserts:
       - equal:

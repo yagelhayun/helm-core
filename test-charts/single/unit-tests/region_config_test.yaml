@@ -4,7 +4,7 @@ templates:
 tests:
   - it: applies region-specific configMap data when region matches
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     # global.region=us-west-1; regions.us-west-1.configMap.data.ENDPOINT=storage.us-west-1.com
     asserts:
       - equal:
@@ -13,7 +13,7 @@ tests:
 
   - it: applies a different region's configMap data when region changes
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     set:
       global.region: us-east-1
     asserts:
@@ -23,7 +23,7 @@ tests:
 
   - it: preserves root-level keys that have no region override
     values:
-      - common.values.yaml
+      - ../common.values.yaml
     asserts:
       - equal:
           path: data.KEY1
