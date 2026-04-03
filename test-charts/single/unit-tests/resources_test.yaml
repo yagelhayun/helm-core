@@ -1,0 +1,40 @@
+suite: core.container.resources
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: uses default limitMultiplier of 4 for CPU limit
+    values:
+      - common.values.yaml
+    # resources.cpu=250m, no limitMultiplier → limit = 250 * 4 = 1000m
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "250m"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "1000m"
+
+  - it: applies custom limitMultiplier to CPU limit
+    values:
+      - common.values.yaml
+      - prod.values.yaml
+    # prod: resources.cpu=1, limitMultiplier=2 → request='1', limit='2'
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "1"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"
+
+  - it: sets memory equal in both requests and limits
+    values:
+      - common.values.yaml
+    # resources.memory=500Mi → both requests and limits = 500Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: "500Mi"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: "500Mi"

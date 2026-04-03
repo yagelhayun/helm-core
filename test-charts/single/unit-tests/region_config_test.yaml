@@ -1,0 +1,30 @@
+suite: core.general.config — region merging
+templates:
+  - templates/configmap.yaml
+tests:
+  - it: applies region-specific configMap data when region matches
+    values:
+      - common.values.yaml
+    # global.region=us-west-1; regions.us-west-1.configMap.data.ENDPOINT=storage.us-west-1.com
+    asserts:
+      - equal:
+          path: data.ENDPOINT
+          value: storage.us-west-1.com
+
+  - it: applies a different region's configMap data when region changes
+    values:
+      - common.values.yaml
+    set:
+      global.region: us-east-1
+    asserts:
+      - equal:
+          path: data.ENDPOINT
+          value: storage.us-east-1.com
+
+  - it: preserves root-level keys that have no region override
+    values:
+      - common.values.yaml
+    asserts:
+      - equal:
+          path: data.KEY1
+          value: VALUE

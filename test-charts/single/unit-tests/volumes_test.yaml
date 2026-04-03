@@ -1,0 +1,49 @@
+suite: core.pod.volumes and core.container.volumeMounts
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: renders a secret volume
+    values:
+      - common.values.yaml
+    # volumes.secrets.fire-devops-push → secret volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: fire-devops-push
+            secret:
+              secretName: fire-devops-push
+              defaultMode: 420
+
+  - it: renders an emptyDir volume
+    values:
+      - common.values.yaml
+    # volumes.empty.kafka-writable-mount → emptyDir volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: kafka-writable-mount
+            emptyDir: {}
+
+  - it: renders a volumeMount for a secret volume
+    values:
+      - common.values.yaml
+    # volumes.secrets.fire-devops-push.mountPath=/
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: fire-devops-push
+            mountPath: /
+
+  - it: renders a volumeMount for an emptyDir volume
+    values:
+      - common.values.yaml
+    # volumes.empty.kafka-writable-mount.mountPath=/kafka
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: kafka-writable-mount
+            mountPath: /kafka
