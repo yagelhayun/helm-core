@@ -1,0 +1,54 @@
+suite: core.common.strategy
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: defaults to RollingUpdate type
+    values:
+      - ../minimal.values.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+
+  - it: defaults maxUnavailable to 25%
+    values:
+      - ../minimal.values.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: "25%"
+
+  - it: defaults maxSurge to 25%
+    values:
+      - ../minimal.values.yaml
+    asserts:
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: "25%"
+
+  - it: uses Recreate type when configured
+    values:
+      - ../minimal.values.yaml
+    set:
+      strategy.type: Recreate
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+      - notExists:
+          path: spec.strategy.rollingUpdate
+
+  - it: uses custom maxUnavailable and maxSurge when configured
+    values:
+      - ../minimal.values.yaml
+    set:
+      strategy.type: RollingUpdate
+      strategy.maxUnavailable: "50%"
+      strategy.maxSurge: "50%"
+    asserts:
+      - equal:
+          path: spec.strategy.rollingUpdate.maxUnavailable
+          value: "50%"
+      - equal:
+          path: spec.strategy.rollingUpdate.maxSurge
+          value: "50%"

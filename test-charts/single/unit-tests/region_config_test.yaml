@@ -5,11 +5,11 @@ tests:
   - it: applies region-specific configMap data when region matches
     values:
       - ../common.values.yaml
-    # global.region=us-west-1; regions.us-west-1.configMap.data.ENDPOINT=storage.us-west-1.com
+    # global.region=us-west-1; regions.us-west-1.configMap.data.ENDPOINT=storage.us-west-1.example.com
     asserts:
       - equal:
           path: data.ENDPOINT
-          value: storage.us-west-1.com
+          value: storage.us-west-1.example.com
 
   - it: applies a different region's configMap data when region changes
     values:
@@ -19,7 +19,7 @@ tests:
     asserts:
       - equal:
           path: data.ENDPOINT
-          value: storage.us-east-1.com
+          value: storage.us-east-1.example.com
 
   - it: preserves root-level keys that have no region override
     values:
@@ -28,3 +28,24 @@ tests:
       - equal:
           path: data.KEY1
           value: VALUE
+
+  - it: region override merges into root-level keys rather than replacing them
+    values:
+      - ../common.values.yaml
+    # KEY1 is root-only; ENDPOINT is region-only — both should appear
+    asserts:
+      - equal:
+          path: data.KEY1
+          value: VALUE
+      - equal:
+          path: data.ENDPOINT
+          value: storage.us-west-1.example.com
+
+  - it: resolves tpl expressions inside configMap data values
+    values:
+      - ../common.values.yaml
+    # PORT: "{{ .Values.port }}" should resolve to "5000"
+    asserts:
+      - equal:
+          path: data.PORT
+          value: "5000"

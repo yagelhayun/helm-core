@@ -16,33 +16,33 @@ replicas: 3
 image:
   url: myrepo/myapp
   pullSecrets:
-    - my-registry-secret
+    - registry-secret
 
 volumes:
   secrets:
-    fire-devops-push:
-      mountPath: /
+    app-secret:
+      mountPath: /run/secrets
   empty:
-    kafka-writable-mount:
-      mountPath: /kafka
+    writable-tmp:
+      mountPath: /tmp/scratch
 
 envFrom:
   secrets:
-    fire-devops-push: {}
+    app-secret: {}
   configMaps:
-    fire-devops-push: {}
+    app-config: {}
 
 env:
   secrets:
-    devops-switchover:
-      - key: PORTAL_API_TOKEN
-        variable: test1
-      - key: PORTAL_API_TOKEN
-        variable: test2
+    feature-config:
+      - key: API_TOKEN
+        variable: APP_API_TOKEN
+      - key: API_TOKEN
+        variable: APP_API_TOKEN_COPY
   configMaps:
-    devops-switchover:
-      - key: DB_IDS
-        variable: test3
+    feature-config:
+      - key: DB_HOSTS
+        variable: DATABASE_HOSTS
 
 configMap:
   data:
@@ -55,19 +55,19 @@ regions:
   us-east-1:
     configMap:
       data:
-        ENDPOINT: "storage.us-east-1.com"
-        URL: "sso.us-east-1.com"
+        ENDPOINT: "storage.us-east-1.example.com"
+        URL: "sso.us-east-1.example.com"
   us-west-1:
     configMap:
       data:
-        ENDPOINT: "storage.us-west-1.com"
-        URL: "sso.us-west-1.com"
+        ENDPOINT: "storage.us-west-1.example.com"
+        URL: "sso.us-west-1.example.com"
 
 probes:
   readiness:
     httpGet:
-      path: /whoami
-      port: 3000
+      path: /health
+      port: 5000
       scheme: HTTP
   liveness:
     exec:
@@ -81,8 +81,8 @@ probes:
     timeoutSeconds: 30
   startup:
     httpGet:
-      path: /health
-      port: 3000
+      path: /ready
+      port: 5000
     failureThreshold: 30
     periodSeconds: 10
 

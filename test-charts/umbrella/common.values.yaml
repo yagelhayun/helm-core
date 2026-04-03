@@ -5,35 +5,35 @@ global:
 
   image:
     pullSecrets:
-      - global-registry-secret
+      - registry-secret
 
   envFrom:
     secrets:
-      fire-devops-push: {}
+      app-secret: {}
     configMaps:
-      common: {}
+      shared-config: {}
 
   volumes:
     secrets:
-      fire-devops-push:
-        mountPath: /tmp
+      app-secret:
+        mountPath: /run/secrets
         files:
-          - .dockerconfigjson
+          - credentials.json
     empty:
-      kafka-writable-mount:
-        mountPath: /kafka
+      writable-tmp:
+        mountPath: /tmp/scratch
 
   env:
     secrets:
-      devops-switchover:
-        - key: PORTAL_API_TOKEN
-          variable: test1
+      feature-config:
+        - key: API_TOKEN
+          variable: APP_API_TOKEN
 
 common:
   configMap:
     data:
-      IS_CLOUD: "true"
-      KafkaTempKeystoreLocation: '{{ index .Values.global.volumes.secrets "fire-devops-push" "mountPath" }}'
+      FEATURE_FLAG: "true"
+      CACHE_DIR: '{{ index .Values.global.volumes.secrets "app-secret" "mountPath" }}'
       PORT: "{{ .Values.global.port }}"
 
 worker:
@@ -48,12 +48,12 @@ worker:
     url: worker
 
   initContainers:
-    - name: wait-for-kafka
+    - name: wait-for-dependency
       image:
         url: busybox
         tag: "1.36"
       command: ["/bin/sh"]
-      args: ["-c", "echo waiting for kafka"]
+      args: ["-c", "echo waiting for dependency"]
       resources:
         cpu: 50m
         memory: 64Mi
