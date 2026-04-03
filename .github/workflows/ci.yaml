@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Lint chart
+        run: helm lint .
+
+  test-single:
+    name: Template / single
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Template
+        run: >-
+          helm template core-test-single .
+            --dependency-update
+            -f common.values.yaml
+            -f prod.values.yaml
+        working-directory: tests/single
+
+  test-umbrella:
+    name: Template / umbrella
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: Template
+        run: >-
+          helm template core-test-umbrella .
+            --dependency-update
+            -f common.values.yaml
+            -f prod.values.yaml
+        working-directory: tests/umbrella
