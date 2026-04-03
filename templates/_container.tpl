@@ -1,7 +1,10 @@
 {{/*
-  * Render volumeMounts from configuration in values.yaml
-    (refer to "core.pod.volumes" in _common.tpl)
-  * @param volumes
+  Renders the volumeMounts list for a container.
+  Iterates over all volume types (secrets, configMaps, empty) and produces
+  one mount entry per volume. When a volume defines a "files" list each file
+  gets its own subPath mount under the base mountPath.
+  @param  volumes  {object}  volumes config map with keys: secrets, configMaps, empty
+  @return {string}  YAML list of volumeMount objects, or empty string if no volumes
 */}}
 {{- define "core.container.volumeMounts" -}}
 {{- range $typeName, $resources := .volumes }}
@@ -21,8 +24,13 @@
 {{- end }}
 
 {{/*
-  * Render envFrom from configuration in values.yaml
-  * @param envFrom
+  Renders envFrom entries for named ConfigMaps and Secrets.
+  Internal helper used by core.container.envFrom; does not include the
+  inline ConfigMap generated from configMap.data.
+  @param  $                   {object}  Helm root context (for cluster lookups)
+  @param  envFrom.configMaps  {object}  map of configMap names to include as envFrom
+  @param  envFrom.secrets     {object}  map of Secret names to include as envFrom
+  @return {string}  YAML list of envFrom entries, or empty string
 */}}
 {{- define "core.container.envFrom.base" -}}
 {{- $ := (index . "$") }}
@@ -40,10 +48,15 @@
 {{- end }}
 
 {{/*
-  * Render envFrom and add generated configmap automatically
-  * @param envFrom
-  * @param configMap
-  * @param configmapNameCallback
+  Renders the full envFrom list, including an auto-generated entry for the
+  inline ConfigMap when configMap.data is defined.
+  The inline ConfigMap name is resolved via configmapNameCallback if provided,
+  otherwise falls back to core.configmap.name.
+  @param  $                     {object}   Helm root context
+  @param  envFrom               {object}   see core.container.envFrom.base
+  @param  configMap.data        {object}   if set, a configMapRef for the inline ConfigMap is appended
+  @param  configmapNameCallback {string}   name of a template to call for the inline ConfigMap name (optional)
+  @return {string}  YAML list of envFrom entries, or empty string
 */}}
 {{- define "core.container.envFrom" -}}
 {{ include "core.container.envFrom.base" . }}
@@ -54,9 +67,13 @@
 {{- end }}
 
 {{/*
-  * Render env
-  * This function checks whether the configMaps/secrets exist in the namespace, unlike other functions from the same category (volumes, envFrom).
-  * @param env
+  Renders individual env vars sourced from ConfigMap or Secret keys.
+  Unlike envFrom, each variable is mapped to a specific key, and the source
+  resource is validated to exist (and contain the key) during live deployments.
+  @param  $    {object}  Helm root context (for cluster lookups)
+  @param  env  {object}  map with keys "configMaps" and/or "secrets", each a map of
+                         resource name → list of {key, variable} pairs
+  @return {string}  YAML list of env var objects, or empty string
 */}}
 {{- define "core.container.env" -}}
 {{- $ := (index . "$") }}
@@ -79,8 +96,14 @@
 {{- end }}
 
 {{/*
-  * Create resources object that .........
-  * @param resources
+  Renders the resources block (requests and limits) for a container.
+  CPU limits are computed as request × limitMultiplier. The multiplier
+  defaults to 4 when not specified, giving headroom without setting hard caps.
+  Memory limits always equal requests (no multiplier applied).
+  @param  resources.cpu             {string|number}  CPU request, e.g. "250m" or 1
+  @param  resources.memory          {string}         memory request and limit, e.g. "512Mi"
+  @param  resources.limitMultiplier {number}         CPU limit multiplier (default: 4)
+  @return {string}  YAML resources block with requests and limits
 */}}
 {{- define "core.container.resources" -}}
 {{- $unitsRegex := "([a-z]|[A-Z])+$" }}
@@ -96,8 +119,18 @@ limits:
 {{- end }}
 
 {{/*
-  * Renders a probe
-  * @param probe
+  Renders a single probe spec (httpGet or exec) with timing fields.
+  Called by the typed probe helpers below — not intended for direct use.
+  @param  probe                  {object}   probe definition from values
+  @param  probe.httpGet          {object}   httpGet probe config { path, port, scheme }
+  @param  probe.exec             {object}   exec probe config { command }
+  @param  probe.failureThreshold {integer}  (default: 3)
+  @param  probe.initialDelaySeconds {integer} (default: 40)
+  @param  probe.periodSeconds    {integer}  (default: 30)
+  @param  probe.successThreshold {integer}  (default: 1)
+  @param  probe.timeoutSeconds   {integer}  (default: 20)
+  @param  port                   {integer}  container port used when probe.httpGet.port is absent
+  @return {string}  YAML probe spec block, or empty string if probe is not set
 */}}
 {{- define "core.container.probes" }}
 {{- $port := .port }}
@@ -120,7 +153,10 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  * Renders a readiness probe
+  Renders the readinessProbe block.
+  @param  probes.readiness  {object}  probe definition (see core.container.probes)
+  @param  port              {integer} container port
+  @return {string}  YAML readinessProbe spec, or empty string
 */}}
 {{- define "core.container.readinessProbe" }}
 {{- $probeContext := merge (dict "probe" .probes.readiness) . }}
@@ -128,7 +164,10 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  * Renders a liveness probe
+  Renders the livenessProbe block.
+  @param  probes.liveness  {object}  probe definition (see core.container.probes)
+  @param  port             {integer} container port
+  @return {string}  YAML livenessProbe spec, or empty string
 */}}
 {{- define "core.container.livenessProbe" }}
 {{- $probeContext := merge (dict "probe" .probes.liveness) . }}
@@ -136,7 +175,10 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  * Renders a startup probe
+  Renders the startupProbe block.
+  @param  probes.startup  {object}  probe definition (see core.container.probes)
+  @param  port            {integer} container port
+  @return {string}  YAML startupProbe spec, or empty string
 */}}
 {{- define "core.container.startupProbe" }}
 {{- $probeContext := merge (dict "probe" .probes.startup) . }}
@@ -144,19 +186,26 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  * Renders a single container as a list item (- name: ...).
-  * Used for the main container, sidecars, and init containers.
-  * Falls back to the chart name when .name is not set (main container case).
-  * @param name            - container name (optional; defaults to chart name)
-  * @param image           - image config
-  * @param global.image    - global image fallback
-  * @param port            - optional container port number
-  * @param portName        - optional port name (default: "http")
-  * @param command / args  - optional entrypoint overrides
-  * @param envFrom / env   - environment configuration
-  * @param volumes         - for volumeMounts
-  * @param resources       - cpu / memory / limitMultiplier
-  * @param probes          - readiness / liveness / startup
+  Renders a single container as a list item (- name: ...).
+  Used for the main container, sidecars, and init containers.
+  Falls back to the chart name when .name is not set (main container case).
+  @param  $                {object}          Helm root context
+  @param  name             {string}          container name (default: chart name)
+  @param  image.url        {string}          image repository URL
+  @param  image.tag        {string}          image tag (default: "latest")
+  @param  image.pullPolicy {string}          pull policy (default: "IfNotPresent")
+  @param  global.image     {object}          global image fallback for url, tag, and pullPolicy
+  @param  port             {integer}         container port number (optional)
+  @param  portName         {string}          port name (default: "http")
+  @param  command          {array}           entrypoint override (optional)
+  @param  args             {array}           argument override (optional)
+  @param  envFrom          {object}          bulk env from ConfigMaps/Secrets (see core.container.envFrom)
+  @param  configMap.data   {object}          if set, auto-adds inline ConfigMap to envFrom
+  @param  env              {object}          individual env vars from keys (see core.container.env)
+  @param  volumes          {object}          volumes config used to derive volumeMounts
+  @param  resources        {object}          cpu/memory/limitMultiplier (see core.container.resources)
+  @param  probes           {object}          readiness/liveness/startup probe definitions
+  @return {string}  YAML container list item starting with "- name:"
 */}}
 {{- define "core.container.render" }}
 - name: {{ .name | default (include "core.general.name" .) }}
@@ -196,9 +245,11 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  * Renders additional sidecar containers by delegating to core.container.render.
-  * Pod-level volumes used by sidecars must be declared in the root volumes config.
-  * @param sidecars - list of sidecar container configs
+  Renders additional sidecar containers by delegating to core.container.render.
+  Pod-level volumes used by sidecars must be declared in the root volumes config.
+  @param  $        {object}  Helm root context
+  @param  sidecars {array}   list of container config objects (see core.container.render)
+  @return {string}  YAML container list items, or empty string if sidecars is empty
 */}}
 {{- define "core.container.sidecars" }}
 {{- $ := (index . "$") }}
@@ -208,9 +259,12 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  * Render image URL
-  * @param image
-  * @param global.image
+  Renders the full image reference as "url:tag".
+  Falls back to global.image for both url and tag when not set locally.
+  @param  image.url     {string}  image repository URL
+  @param  image.tag     {string}  image tag (default: "latest")
+  @param  global.image  {object}  global image fallback { url, tag }
+  @return {string}  image reference string, e.g. "myrepo/myapp:v1.2.3"
 */}}
 {{- define "core.container.image" }}
 {{- $imageURL := (.image).url | default ((.global).image).url }}

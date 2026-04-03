@@ -1,16 +1,22 @@
 {{/*
-  * Checks if the chart is actually being deployed (install/upgrade, excluding --dry-run)
-  *
-  * Why do we need this?
-  *
-  * When using the lookup command, it needs access to a k8s cluster.
-  * Running "helm template" or "helm install --dry-run" won't connect to the cluster,
-  * so lookup returns an empty map. We can only use lookup during a real deployment.
-  *
-  * Uses $.Release.IsRender (Helm 3.13+) when available. On older versions it falls back to
-  * checking whether the release name is the default "RELEASE-NAME" placeholder used by
-  * "helm template". The ignoreLookup global flag can be set to "true" to bypass cluster
-  * lookups explicitly (useful in tests and local rendering).
+  Returns "true" when Helm is running a real install or upgrade against a live
+  cluster, and "false" for dry-runs, helm template, and test renders.
+
+  Why this matters: the lookup function requires a live cluster connection.
+  Calling it during helm template or --dry-run returns an empty map, which
+  would cause misleading validation failures. This helper gates all cluster
+  lookups so they only fire when the result is trustworthy.
+
+  Detection logic (in order):
+    1. $.Release.IsRender — set by Helm 3.13+ for all non-live renders.
+    2. Release name == "RELEASE-NAME" — the placeholder used by helm template
+       on older Helm versions.
+    3. global.ignoreLookup: "true" — explicit opt-out, useful in tests and
+       local rendering regardless of Helm version.
+
+  @param  $                     {object}  Helm root context
+  @param  global.ignoreLookup   {string}  set to "true" to force non-real-deployment mode
+  @return {string}  "true" | "false"
 */}}
 {{- define "core.isRealDeployment" -}}
 {{- $ := (index . "$") }}
@@ -19,15 +25,14 @@
 {{- end }}
 
 {{/*
-  * Gets a resource from the cluster and fails if it doesn't exist
-  *
-  * We used "core.isRealDeployment" to make sure the lookup will work.
-  * If we can actually connect to the cluster *AND* the resource information returned from lookup
-  * is falsey (null/empty), we fail the template.
-  *
-  * @param name
-  * @param type
-  * @param version
+  Fetches an arbitrary resource from the cluster and fails if it is missing.
+  Skips the lookup (returns empty) when not running against a real cluster.
+  Callers receive the resource as a YAML object and can read its fields.
+  @param  $        {object}  Helm root context
+  @param  name     {string}  resource name
+  @param  type     {string}  resource kind, e.g. "Secret", "ConfigMap"
+  @param  version  {string}  API version for the lookup (default: "v1")
+  @return {string}  YAML-encoded resource object, or empty string during non-live renders
 */}}
 {{- define "core.cluster.getResource" -}}
 {{- $ := (index . "$") }}
@@ -42,9 +47,13 @@
 {{- end }}
 
 {{/*
-  * Fails if the resource doesnt contain a certain key
-  * @param resource
-  * @param key
+  Validates that a fetched resource contains a specific data key.
+  No-ops during non-live renders (helm template, dry-run).
+  Fails the render if the key is absent during a live deployment,
+  preventing a broken rollout from reaching the cluster.
+  @param  $         {object}  Helm root context
+  @param  resource  {object}  resource object returned by core.cluster.getResource
+  @param  key       {string}  the data key that must exist in resource.data
 */}}
 {{- define "core.cluster.checkIfKeyExists" -}}
 {{- $isRealDeployment := eq (include "core.isRealDeployment" .) "true" -}}

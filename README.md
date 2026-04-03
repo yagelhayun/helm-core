@@ -1,6 +1,8 @@
 # Helm Core
 
-A Helm library chart that provides reusable template helpers for deploying Kubernetes workloads. It is not deployed directly — it is consumed as a dependency by application charts (such as `helm-templates`).
+A Helm library chart that provides a shared hub of reusable template helpers for rendering Kubernetes workloads. It is not deployed directly — it is consumed as a dependency by any number of application or library charts.
+
+`helm-templates` is one example consumer, but the library is intentionally generic: any chart that needs deployments, services, configmaps, probes, volumes, or region-aware config merging can depend on `helm-core` and call its helpers directly.
 
 ---
 
@@ -115,12 +117,20 @@ replicas: 3
 # Result: 0 replicas (region doesn't match activeRegion)
 ```
 
-### `core.common.strategy.rollingUpdate` / `core.common.strategy.recreate`
+### `core.common.strategy`
 
-Returns a pre-built `strategy` block. Use with `nindent`:
+Renders the deployment strategy block. Defaults to `RollingUpdate` with percentage-based values (`25%`) so the budget scales automatically with replica count. Set `strategy.type: Recreate` to terminate all pods before starting new ones.
 
 ```yaml
-strategy: {{ include "core.common.strategy.rollingUpdate" $context | nindent 4 }}
+strategy: {{ include "core.common.strategy" $context | nindent 4 }}
+```
+
+```yaml
+# values — all fields optional
+strategy:
+  type: RollingUpdate   # default, or Recreate
+  maxUnavailable: "25%" # default
+  maxSurge: "25%"       # default
 ```
 
 ---
@@ -177,7 +187,20 @@ initContainers: {{ . | indent 6 }}
 
 ### `core.pod.topologySpreadConstraints`
 
-Emits a topology spread constraint that distributes pods evenly across availability zones (`topology.kubernetes.io/zone`) with `whenUnsatisfiable: ScheduleAnyway`.
+Renders topology spread constraints with an auto-injected `labelSelector`. By default (when the key is absent from values) two constraints are applied — one across hostnames and one across availability zones, both with `whenUnsatisfiable: ScheduleAnyway` so scheduling is never hard-blocked.
+
+Consumer charts should declare the defaults explicitly in their `values.yaml` so users can see and override them. Set `topologySpreadConstraints: []` to disable entirely.
+
+```yaml
+# values
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+```
 
 ### `core.pod.annotations`
 
@@ -346,17 +369,25 @@ Fails the release if a specific key is absent from a fetched resource. Used by `
 
 ## Test charts
 
-Two test charts live under `tests/`:
+Two test application charts live under `test-charts/`. They wrap the library so its helpers can be rendered and validated without a deployed application chart.
 
 | Chart | Purpose |
 |-------|---------|
-| `tests/single` | Single-chart deployment: configmap, service, deployment |
-| `tests/umbrella` | Multi-chart umbrella: `common` (configmap only), `master`, `worker` sub-charts |
+| `test-charts/single` | Single-chart deployment: configmap, service, deployment |
+| `test-charts/umbrella` | Multi-chart umbrella: `common` (configmap only), `master`, `worker` sub-charts |
 
-Run tests with:
+Render manually:
 
 ```bash
-cd tests/single
+cd test-charts/single
 helm dependency update
 helm template core-test-single . -f common.values.yaml -f prod.values.yaml
+```
+
+Run unit tests (requires the [helm-unittest](https://github.com/helm-unittest/helm-unittest) plugin):
+
+```bash
+cd test-charts/single
+helm dependency build
+helm unittest -f 'unit-tests/*_test.yaml' .
 ```
