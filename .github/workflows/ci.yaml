@@ -24,10 +24,10 @@ jobs:
         run: helm dependency build
         working-directory: tests/single
       - name: Template
-        run: |
-          helm template core-test-single . \
-            -f common.values.yaml \
-            -f prod.values.yaml
+        run: >-
+          helm template core-test-single .
+          -f common.values.yaml
+          -f prod.values.yaml
         working-directory: tests/single
 
   test-umbrella:
@@ -40,8 +40,8 @@ jobs:
         run: helm dependency build
         working-directory: tests/umbrella
       - name: Template
-        run: |
-          helm template core-test-umbrella . \
-            -f common.values.yaml \
-            -f prod.values.yaml
+        run: >-
+          helm template core-test-umbrella .
+          -f common.values.yaml
+          -f prod.values.yaml
         working-directory: tests/umbrella
