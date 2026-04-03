@@ -25,16 +25,3 @@
 commit: {{ ternary (int .) (.) $isNumber | quote }}
 {{- end }}
 {{- end }}
-
-{{/*
-  Returns the desired replica count, enforcing zero replicas in inactive regions.
-  When activeRegion is set and does not match global.region the deployment is
-  scaled to 0, supporting blue/green and regional active/standby patterns.
-  @param  replicas      {integer}  desired replica count
-  @param  activeRegion  {string}   the region that should run live pods (optional)
-  @param  region        {string}   the current region (from global.region after config merge)
-  @return {integer}  replica count — either the configured value or 0
-*/}}
-{{- define "core.deployment.replicas" -}}
-{{- ternary .replicas 0 (or (not .activeRegion) (eq .activeRegion .region)) }}
-{{- end }}

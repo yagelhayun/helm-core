@@ -6,7 +6,7 @@ metadata:
   name: {{ include "core.deployment.name" $context }}
   labels: {{ include "core.deployment.labels" $context | nindent 4 }}
 spec:
-  replicas: {{ include "core.deployment.replicas" $context }}
+  replicas: {{ include "core.common.replicas" $context }}
   selector:
     matchLabels: {{ include "core.common.labels" $context | nindent 6 }}
   revisionHistoryLimit: {{ ternary 1 (int $context.revisionHistoryLimit) (kindIs "invalid" $context.revisionHistoryLimit) }}

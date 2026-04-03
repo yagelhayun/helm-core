@@ -105,7 +105,7 @@ Extends `core.common.labels` with an optional `commit` label sourced from `globa
 ### `core.deployment.name`
 Returns the deployment name (delegates to `core.general.name`).
 
-### `core.deployment.replicas`
+### `core.common.replicas`
 
 Returns the configured replica count, or `0` if `activeRegion` is set and does not match the current `region`. Used to make a deployment dormant in non-active regions without removing it.
 

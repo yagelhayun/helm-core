@@ -1,21 +1,34 @@
 {{/*
-  Renders the deployment strategy block.
-  Defaults to RollingUpdate with percentage-based values so the budget scales
-  automatically with replica count: 25% rounds down to 0 unavailable for a
-  single-replica deployment (no downtime) and up to 1 for surge.
-  Set strategy.type: Recreate to terminate all existing pods before new ones start.
-  @param  strategy.type           {string}  "RollingUpdate" (default) | "Recreate"
-  @param  strategy.maxUnavailable {string|integer}  max pods unavailable during rollout (default: "25%")
-  @param  strategy.maxSurge       {string|integer}  max pods above desired count during rollout (default: "25%")
-  @return {string}  YAML strategy block (type + optional rollingUpdate)
+  Renders a strategy/updateStrategy block for any workload kind.
+
+  The rollingUpdate sub-fields depend on the workload type:
+  - Deployment/DaemonSet: maxUnavailable + maxSurge (percentage defaults scale with replica count)
+  - StatefulSet:          partition only (set strategy.partition for canary ordinal rollouts)
+
+  The presence of strategy.partition is used as the discriminator — set it to
+  switch to StatefulSet rolling-update mode. Recreate and OnDelete produce no
+  rollingUpdate block at all.
+
+  Note: the caller is responsible for the correct field name in the manifest
+  (Deployment uses "strategy:", StatefulSet/DaemonSet use "updateStrategy:").
+
+  @param  strategy.type           {string}          "RollingUpdate" (default) | "Recreate" | "OnDelete"
+  @param  strategy.partition      {integer}         StatefulSet ordinal partition for canary rollouts (optional)
+  @param  strategy.maxUnavailable {string|integer}  Deployment/DaemonSet: max pods unavailable (default: "25%")
+  @param  strategy.maxSurge       {string|integer}  Deployment/DaemonSet: max pods above desired (default: "25%")
+  @return {string}  YAML strategy block
 */}}
 {{- define "core.common.strategy" -}}
 {{- $type := (.strategy).type | default "RollingUpdate" -}}
 type: {{ $type }}
 {{- if eq $type "RollingUpdate" }}
 rollingUpdate:
+  {{- if not (kindIs "invalid" (.strategy).partition) }}
+  partition: {{ (.strategy).partition }}
+  {{- else }}
   maxUnavailable: {{ (.strategy).maxUnavailable | default "25%" | quote }}
   maxSurge: {{ (.strategy).maxSurge | default "25%" | quote }}
+  {{- end }}
 {{- end }}
 {{- end }}
 
@@ -31,4 +44,17 @@ rollingUpdate:
 app.kubernetes.io/name: {{ include "core.general.name" . | quote }}
 helm.sh/chart: {{ printf "%s-%s" $.Chart.Name $.Chart.Version | quote }}
 app.kubernetes.io/managed-by: {{ $.Release.Service | quote }}
+{{- end }}
+
+{{/*
+  Returns the desired replica count, enforcing zero replicas in inactive regions.
+  When activeRegion is set and does not match global.region the deployment is
+  scaled to 0, supporting blue/green and regional active/standby patterns.
+  @param  replicas      {integer}  desired replica count
+  @param  activeRegion  {string}   the region that should run live pods (optional)
+  @param  region        {string}   the current region (from global.region after config merge)
+  @return {integer}  replica count — either the configured value or 0
+*/}}
+{{- define "core.common.replicas" -}}
+{{- ternary .replicas 0 (or (not .activeRegion) (eq .activeRegion .region)) }}
 {{- end }}
