@@ -4,11 +4,11 @@ kind: Service
 apiVersion: v1
 metadata:
   name: {{ include "core.service.name" $context }}
-  labels: {{ include "core.common.labels" $context | nindent 4 }}
+  labels: {{ include "core.general.labels" $context | nindent 4 }}
 spec:
   ports:
   - name: {{ $context.portName | default "http" }}
     protocol: TCP
     port: {{ $context.port }}
     targetPort: {{ $context.portName | default "http" }}
-  selector: {{ include "core.common.labels" $context | nindent 4 }}
+  selector: {{ include "core.general.selectorLabels" $context | nindent 4 }}

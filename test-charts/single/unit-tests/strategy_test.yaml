@@ -1,4 +1,4 @@
-suite: core.common.strategy
+suite: core.workload.strategy
 templates:
   - templates/deployment.yaml
 tests:

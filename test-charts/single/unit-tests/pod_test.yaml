@@ -102,8 +102,6 @@ tests:
             labelSelector:
               matchLabels:
                 app.kubernetes.io/name: core-test-single
-                helm.sh/chart: core-test-single-0.1.0
-                app.kubernetes.io/managed-by: Helm
       - contains:
           path: spec.template.spec.topologySpreadConstraints
           content:
@@ -113,8 +111,6 @@ tests:
             labelSelector:
               matchLabels:
                 app.kubernetes.io/name: core-test-single
-                helm.sh/chart: core-test-single-0.1.0
-                app.kubernetes.io/managed-by: Helm
 
   - it: omits topologySpreadConstraints when set to empty list
     values:

@@ -4,7 +4,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: {{ include "core.configmap.name" $context }}
-  labels: {{ include "core.common.labels" $context | nindent 4 }}
+  labels: {{ include "core.general.labels" $context | nindent 4 }}
 data:
 {{- range $key, $value := ($context.configMap).data }}
   {{ $key }}: {{ $value | quote }}

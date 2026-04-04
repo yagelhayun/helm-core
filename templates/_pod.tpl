@@ -90,7 +90,7 @@
   topologyKey: {{ .topologyKey }}
   whenUnsatisfiable: {{ .whenUnsatisfiable }}
   labelSelector:
-    matchLabels: {{ include "core.common.labels" $ctx | nindent 6 }}
+    matchLabels: {{ include "core.general.selectorLabels" $ctx | nindent 6 }}
 {{- end }}
 {{- end }}
 
@@ -135,4 +135,15 @@
 {{- if (.configMap).data }}
 checksum/config: {{ .configMap.data | toYaml | sha256sum }}
 {{- end }}
+{{- end }}
+
+{{/*
+  Returns the service account name for a pod spec.
+  Reads serviceAccount.name from the resolved config, falling back to "default"
+  when not set.
+  @param  serviceAccount.name  {string}  service account name (optional)
+  @return {string}  service account name
+*/}}
+{{- define "core.pod.serviceaccount" -}}
+{{- (.serviceAccount).name | default "default" }}
 {{- end }}

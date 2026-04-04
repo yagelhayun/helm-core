@@ -9,6 +9,35 @@
 {{- end }}
 
 {{/*
+  Renders the stable label set used as pod selector and pod template labels.
+  These labels must never change for the lifetime of a release — they are used
+  in spec.selector.matchLabels (immutable after creation) and
+  spec.template.metadata.labels (must satisfy the selector).
+  @param  $  {object}  Helm root context
+  @return {string}  YAML key-value label block
+*/}}
+{{- define "core.general.selectorLabels" -}}
+{{- $ := (index . "$") -}}
+app.kubernetes.io/name: {{ include "core.general.name" . | quote }}
+{{- end }}
+
+{{/*
+  Renders the full label set applied to resource metadata.
+  Includes helm.sh/chart (which carries the chart version) and managed-by,
+  so it must NOT be used at spec.selector or pod template level.
+  Workload-specific labels (e.g. commit SHA) are added by the caller via
+  core.workload.labels / core.daemonset.labels / core.statefulset.labels.
+  @param  $  {object}  Helm root context (for Chart.Name, Chart.Version, Release.Service)
+  @return {string}  YAML key-value label block
+*/}}
+{{- define "core.general.labels" -}}
+{{- $ := (index . "$") -}}
+{{- include "core.general.selectorLabels" . }}
+helm.sh/chart: {{ printf "%s-%s" $.Chart.Name $.Chart.Version | quote }}
+app.kubernetes.io/managed-by: {{ $.Release.Service | quote }}
+{{- end }}
+
+{{/*
   Merges region-specific values on top of a given values scope.
   Looks up the key matching global.region inside the scope's "regions" map
   and deep-merges it over the scope itself, so region keys win over root keys.

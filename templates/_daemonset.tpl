@@ -8,15 +8,3 @@
 {{- define "core.daemonset.name" -}}
 {{- include "core.general.name" . }}
 {{- end }}
-
-{{/*
-  Renders the labels for a DaemonSet and its pod template.
-  Delegates to core.deployment.labels — same standard label set including
-  the optional commit label sourced from global.commit.
-  @param  $              {object}          Helm root context
-  @param  global.commit  {string|integer}  git commit SHA or build number (optional)
-  @return {string}  YAML key-value label block
-*/}}
-{{- define "core.daemonset.labels" -}}
-{{- include "core.deployment.labels" . }}
-{{- end }}

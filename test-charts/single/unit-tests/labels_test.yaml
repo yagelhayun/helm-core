@@ -1,4 +1,4 @@
-suite: core.common.labels and core.deployment.labels
+suite: core.general.labels and core.workload.labels
 templates:
   - templates/deployment.yaml
 tests:

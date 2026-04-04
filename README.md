@@ -94,7 +94,7 @@ helm.sh/chart: "<chart-name>-<chart-version>"
 app.kubernetes.io/managed-by: "Helm"
 ```
 
-### `core.deployment.labels`
+### `core.workload.labels`
 
 Extends `core.common.labels` with an optional `commit` label sourced from `global.commit`. If `global.commit` is absent the label is omitted, so local development flows are not blocked.
 

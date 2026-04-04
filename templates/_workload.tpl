@@ -18,7 +18,7 @@
   @param  strategy.maxSurge       {string|integer}  Deployment/DaemonSet: max pods above desired (default: "25%")
   @return {string}  YAML strategy block
 */}}
-{{- define "core.common.strategy" -}}
+{{- define "core.workload.strategy" -}}
 {{- $type := (.strategy).type | default "RollingUpdate" -}}
 type: {{ $type }}
 {{- if eq $type "RollingUpdate" }}
@@ -33,20 +33,6 @@ rollingUpdate:
 {{- end }}
 
 {{/*
-  Renders the standard set of labels applied to every resource and pod selector.
-  These labels are also used as the labelSelector in topology spread constraints
-  and Service selectors, so they must remain stable across chart upgrades.
-  @param  $  {object}  Helm root context (for Chart.Name, Chart.Version, Release.Service)
-  @return {string}  YAML key-value label block
-*/}}
-{{- define "core.common.labels" -}}
-{{- $ := (index . "$") -}}
-app.kubernetes.io/name: {{ include "core.general.name" . | quote }}
-helm.sh/chart: {{ printf "%s-%s" $.Chart.Name $.Chart.Version | quote }}
-app.kubernetes.io/managed-by: {{ $.Release.Service | quote }}
-{{- end }}
-
-{{/*
   Returns the desired replica count, enforcing zero replicas in inactive regions.
   When activeRegion is set and does not match global.region the deployment is
   scaled to 0, supporting blue/green and regional active/standby patterns.
@@ -55,6 +41,23 @@ app.kubernetes.io/managed-by: {{ $.Release.Service | quote }}
   @param  region        {string}   the current region (from global.region after config merge)
   @return {integer}  replica count — either the configured value or 0
 */}}
-{{- define "core.common.replicas" -}}
+{{- define "core.workload.replicas" -}}
 {{- ternary .replicas 0 (or (not .activeRegion) (eq .activeRegion .region)) }}
+{{- end }}
+
+{{/*
+  Renders the labels for a workload and its pod template.
+  Extends core.general.labels with an optional commit label sourced from
+  global.commit, which can be used to correlate a workload with a git SHA.
+  @param  $              {object}           Helm root context
+  @param  global.commit  {string|integer}   git commit SHA or build number (optional)
+  @return {string}  YAML key-value label block
+*/}}
+{{- define "core.workload.labels" -}}
+{{- include "core.general.labels" . -}}
+{{- $ := (index . "$") }}
+{{- with $.Values.global.commit }}
+{{- $isNumber := or (typeIs "float64" .) (typeIs "int64" .) }}
+commit: {{ ternary (int .) (.) $isNumber | quote }}
+{{- end }}
 {{- end }}
