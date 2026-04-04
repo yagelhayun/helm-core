@@ -1,0 +1,16 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: "Package helm-core for local development"
+    cmds:
+      - rm -f core-*.tgz
+      - helm package .
+
+  test:
+    desc: Run helm-core unit tests
+    cmds:
+      - helm dependency update test-charts/single
+      - helm dependency update test-charts/umbrella
+      - helm unittest test-charts/single -f 'unit-tests/*_test.yaml'
+      - helm unittest test-charts/umbrella -f 'unit-tests/*_test.yaml'
