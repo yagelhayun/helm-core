@@ -44,6 +44,49 @@ tests:
             name: writable-tmp
             mountPath: /tmp/scratch
 
+  - it: renders a persistentVolumeClaim volume
+    values:
+      - ../minimal.values.yaml
+    set:
+      global.ignoreLookup: "true"
+      volumes.persistentVolumeClaims.my-data.mountPath: /data
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: my-data
+            persistentVolumeClaim:
+              claimName: my-data
+
+  - it: renders a readOnly persistentVolumeClaim volume
+    values:
+      - ../minimal.values.yaml
+    set:
+      global.ignoreLookup: "true"
+      volumes.persistentVolumeClaims.my-data.mountPath: /data
+      volumes.persistentVolumeClaims.my-data.readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: my-data
+            persistentVolumeClaim:
+              claimName: my-data
+              readOnly: true
+
+  - it: renders a volumeMount for a persistentVolumeClaim volume
+    values:
+      - ../minimal.values.yaml
+    set:
+      global.ignoreLookup: "true"
+      volumes.persistentVolumeClaims.my-data.mountPath: /data
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: my-data
+            mountPath: /data
+
   - it: renders no volumes when volumes is not set
     values:
       - ../minimal.values.yaml

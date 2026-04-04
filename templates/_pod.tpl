@@ -1,12 +1,14 @@
 {{/*
   Renders the volumes list for a pod spec.
-  Supports three volume types: secrets (mounted from a Secret), configMaps
-  (mounted from a ConfigMap), and empty (emptyDir). Each type is iterated
-  separately and validated against the cluster during live deployments.
-  @param  $                              {object}  Helm root context (for cluster lookups)
-  @param  volumes.secrets    {object}  map of Secret name → { mountPath, defaultMode?, files? }
-  @param  volumes.configMaps {object}  map of ConfigMap name → { mountPath, defaultMode?, files? }
-  @param  volumes.empty      {object}  map of volume name → {} (emptyDir)
+  Supports four volume types: secrets (mounted from a Secret), configMaps
+  (mounted from a ConfigMap), empty (emptyDir), and persistentVolumeClaims
+  (referencing an existing PVC). Each type is iterated separately and
+  validated against the cluster during live deployments.
+  @param  $                                      {object}  Helm root context (for cluster lookups)
+  @param  volumes.secrets             {object}  map of Secret name → { mountPath, defaultMode?, files? }
+  @param  volumes.configMaps          {object}  map of ConfigMap name → { mountPath, defaultMode?, files? }
+  @param  volumes.empty               {object}  map of volume name → { mountPath }
+  @param  volumes.persistentVolumeClaims {object}  map of PVC name → { mountPath, readOnly? }
   @return {string}  YAML list of volume objects, or empty string if no volumes
 */}}
 {{- define "core.pod.volumes" -}}
@@ -30,6 +32,15 @@
 {{- range $volumeName, $_ := .empty }}
 - name: {{ $volumeName }}
   emptyDir: {}
+{{- end }}
+{{- range $resourceName, $resourceParams := .persistentVolumeClaims }}
+{{- $pvc := include "core.pvc.get" (dict "$" $ "name" $resourceName) | fromYaml }}
+- name: {{ $resourceName }}
+  persistentVolumeClaim:
+    claimName: {{ $resourceName }}
+    {{- if ($resourceParams).readOnly }}
+    readOnly: true
+    {{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
@@ -139,11 +150,18 @@ checksum/config: {{ .configMap.data | toYaml | sha256sum }}
 
 {{/*
   Returns the service account name for a pod spec.
-  Reads serviceAccount.name from the resolved config, falling back to "default"
-  when not set.
-  @param  serviceAccount.name  {string}  service account name (optional)
+  When serviceAccount.create is true, resolves the name via core.serviceaccount.name
+  (serviceAccount.name if set, otherwise the chart name) so the pod references
+  the ServiceAccount that was just created by the chart.
+  When create is false or unset, falls back to serviceAccount.name or "default".
+  @param  serviceAccount.name    {string}   explicit service account name (optional)
+  @param  serviceAccount.create  {boolean}  whether the chart manages this SA (optional)
   @return {string}  service account name
 */}}
 {{- define "core.pod.serviceaccount" -}}
+{{- if (.serviceAccount).create }}
+{{- include "core.serviceaccount.name" . }}
+{{- else }}
 {{- (.serviceAccount).name | default "default" }}
+{{- end }}
 {{- end }}

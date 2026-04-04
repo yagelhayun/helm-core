@@ -1,0 +1,70 @@
+suite: core.pvc — PersistentVolumeClaim rendering
+templates:
+  - templates/pvc.yaml
+tests:
+  - it: renders a PVC with required fields
+    values:
+      - ../minimal.values.yaml
+    set:
+      persistentVolumeClaims.my-data.size: 10Gi
+    asserts:
+      - isKind:
+          of: PersistentVolumeClaim
+
+  - it: uses configured storage size
+    values:
+      - ../minimal.values.yaml
+    set:
+      persistentVolumeClaims.my-data.size: 10Gi
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 10Gi
+
+  - it: defaults accessMode to ReadWriteOnce
+    values:
+      - ../minimal.values.yaml
+    set:
+      persistentVolumeClaims.my-data.size: 10Gi
+    asserts:
+      - contains:
+          path: spec.accessModes
+          content: ReadWriteOnce
+
+  - it: uses configured accessMode
+    values:
+      - ../minimal.values.yaml
+    set:
+      persistentVolumeClaims.my-data.size: 10Gi
+      persistentVolumeClaims.my-data.accessMode: ReadWriteMany
+    asserts:
+      - contains:
+          path: spec.accessModes
+          content: ReadWriteMany
+
+  - it: includes storageClass when configured
+    values:
+      - ../minimal.values.yaml
+    set:
+      persistentVolumeClaims.my-data.size: 10Gi
+      persistentVolumeClaims.my-data.storageClass: fast-ssd
+    asserts:
+      - equal:
+          path: spec.storageClassName
+          value: fast-ssd
+
+  - it: omits storageClass when not configured (uses cluster default)
+    values:
+      - ../minimal.values.yaml
+    set:
+      persistentVolumeClaims.my-data.size: 10Gi
+    asserts:
+      - notExists:
+          path: spec.storageClassName
+
+  - it: renders no PVC documents when persistentVolumeClaims is not set
+    values:
+      - ../minimal.values.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
