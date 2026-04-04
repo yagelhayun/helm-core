@@ -1,32 +1,36 @@
-# Helm Core
+# Helm Core — User Guide
 
-A Helm library chart that provides a shared hub of reusable template helpers for rendering Kubernetes workloads. It is not deployed directly — it is consumed as a dependency by any number of application or library charts.
+A Helm library chart providing shared template helpers for rendering Kubernetes workloads. Not deployed directly — consumed as a dependency by charts that need deployments, services, configmaps, probes, volumes, and region-aware config merging.
 
-`helm-templates` is one example consumer, but the library is intentionally generic: any chart that needs deployments, services, configmaps, probes, volumes, or region-aware config merging can depend on `helm-core` and call its helpers directly.
+`helm-templates` is the reference consumer, but any chart can depend on `helm-core` and call its helpers directly.
 
 ---
 
-## Consuming this library
-
-Add `helm-core` as a dependency in your `Chart.yaml`:
+## Adding as a dependency
 
 ```yaml
+# Chart.yaml
 dependencies:
   - name: core
-    version: 0.1.0
-    repository: "file://../helm-core"
+    version: 0.3.0
+    repository: "oci://ghcr.io/yagelhayun/helm-charts"
 ```
 
-Then run `helm dependency update` to fetch it.
+Then run `helm dependency update`.
 
-In your templates, build the context dict once at the top of each template file and pass it to every helper:
+---
+
+## Context pattern
+
+Every helper accepts a single `$context` dict. Build it once at the top of each template file:
 
 ```yaml
 {{- $config := include "core.general.config" . | fromYaml }}
 {{- $context := merge (dict "$" $) $config }}
 ```
 
-`$config` is the merged, region-resolved values object. `$context` adds the live Helm root context (`$`) so helpers that need `$.Chart`, `$.Release`, or cluster lookups can access them.
+- `$config` — merged, region-resolved values (flat; `global` and `regions` stripped)
+- `$context` — adds the live Helm root as `$` for `$.Chart`, `$.Release`, and cluster lookups
 
 ---
 
@@ -34,17 +38,14 @@ In your templates, build the context dict once at the top of each template file 
 
 ### `core.general.config`
 
-The core of the library. Merges values from three sources in priority order (highest wins):
+Merges values from four sources in priority order (highest wins):
 
-1. Region-specific overrides (`regions.<region>.*`)
+1. Region-specific root values (`regions.<region>.*`)
 2. Root chart values (`.Values.*`)
-3. Global values (`.Values.global.*`)
+3. Region-specific global values (`global.regions.<region>.*`)
+4. Global values (`.Values.global.*`)
 
-The `global` object is then stripped from the result. Keys in `regions` are also stripped. The final object contains a flat, merged configuration ready for use.
-
-**Requires** `global.region` to be set in values.
-
-**Example values:**
+`global` and `regions` are stripped from the result. Requires `global.region` to be set.
 
 ```yaml
 global:
@@ -58,80 +59,38 @@ regions:
     configMap:
       data:
         ENDPOINT: "api.us-east-1.example.com"
-  us-west-1:
-    configMap:
-      data:
-        ENDPOINT: "api.us-west-1.example.com"
 ```
 
-**Values may contain Go template expressions** (resolved via `tpl`):
+Values may contain Go template expressions (resolved via `tpl`):
 
 ```yaml
 configMap:
   data:
     PORT: "{{ .Values.port }}"
-```
-
-### `core.general.name`
-
-Returns `$.Chart.Name`. Used as the default name for all Kubernetes resources and the main container.
-
-```yaml
-name: {{ include "core.general.name" $context }}
+    MOUNT: '{{ index .Values.global.volumes.secrets "my-secret" "mountPath" }}'
 ```
 
 ---
 
-## Labels
+## General helpers
 
-### `core.common.labels`
+**`core.general.name`** — returns `$.Chart.Name`. Default name for all resources and the main container.
 
-Emits the standard Kubernetes label set:
+**`core.general.labels`** — standard label set: `app.kubernetes.io/name`, `helm.sh/chart`, `app.kubernetes.io/managed-by`.
 
-```yaml
-app.kubernetes.io/name: "<chart-name>"
-helm.sh/chart: "<chart-name>-<chart-version>"
-app.kubernetes.io/managed-by: "Helm"
-```
-
-### `core.workload.labels`
-
-Extends `core.common.labels` with an optional `commit` label sourced from `global.commit`. If `global.commit` is absent the label is omitted, so local development flows are not blocked.
+**`core.general.selectorLabels`** — immutable selector labels (`app.kubernetes.io/name` only). Use in `spec.selector.matchLabels` and pod template labels.
 
 ---
 
-## Deployment helpers
+## Workload helpers
 
-### `core.deployment.name`
-Returns the deployment name (delegates to `core.general.name`).
+**`core.workload.labels`** — extends `core.general.labels` with an optional `commit` label from `global.commit`.
 
-### `core.common.replicas`
+**`core.workload.replicas`** — returns configured replicas, or `0` if `activeRegion` is set and does not match `global.region`. Keeps the workload resource alive in standby regions for rollback history.
 
-Returns the configured replica count, or `0` if `activeRegion` is set and does not match the current `region`. Used to make a deployment dormant in non-active regions without removing it.
+**`core.workload.strategy`** — renders the `strategy` / `updateStrategy` block. Defaults to `RollingUpdate` with `maxUnavailable: 25%` and `maxSurge: 25%`. Presence of `strategy.partition` switches to StatefulSet canary mode.
 
-```yaml
-# Values
-activeRegion: us-east-1
-region: us-west-1   # set by the platform, not the developer
-replicas: 3
-# Result: 0 replicas (region doesn't match activeRegion)
-```
-
-### `core.common.strategy`
-
-Renders the deployment strategy block. Defaults to `RollingUpdate` with percentage-based values (`25%`) so the budget scales automatically with replica count. Set `strategy.type: Recreate` to terminate all pods before starting new ones.
-
-```yaml
-strategy: {{ include "core.common.strategy" $context | nindent 4 }}
-```
-
-```yaml
-# values — all fields optional
-strategy:
-  type: RollingUpdate   # default, or Recreate
-  maxUnavailable: "25%" # default
-  maxSurge: "25%"       # default
-```
+> The caller is responsible for using `strategy:` vs `updateStrategy:` depending on workload kind.
 
 ---
 
@@ -139,72 +98,39 @@ strategy:
 
 ### `core.pod.volumes`
 
-Renders the `volumes:` list from `volumes.secrets`, `volumes.configMaps`, and `volumes.empty`. Validates that referenced secrets exist in the cluster during real deployments.
-
-```yaml
-{{- with (include "core.pod.volumes" $context) }}
-volumes: {{ . | indent 6 }}
-{{- end }}
-```
-
-**Values shape:**
+Renders the `volumes:` list. Supports four types; validates secrets and configmaps exist in the cluster during real deployments.
 
 ```yaml
 volumes:
   secrets:
     my-secret:
-      mountPath: /run/secrets    # used by volumeMounts
-      defaultMode: 420           # optional, default 420 (0644)
-      files:                     # optional: mount individual keys as files
-        - my-key
+      mountPath: /run/secrets
+      defaultMode: 420        # optional, default 420 (0644)
+      files:                  # optional: mount individual keys as files
+        - tls.crt
   configMaps:
-    my-configmap:
+    my-config:
       mountPath: /etc/config
   empty:
-    my-scratch-dir:
-      mountPath: /tmp/scratch    # optional for emptyDir
+    scratch:
+      mountPath: /tmp/scratch
+  persistentVolumeClaims:
+    my-pvc:
+      mountPath: /data
+      readOnly: false
 ```
 
-### `core.pod.imagePullSecrets`
+**`core.pod.imagePullSecrets`** — renders `imagePullSecrets`; falls back to `global.image.pullSecrets`.
 
-Renders `imagePullSecrets` from `image.pullSecrets` or `global.image.pullSecrets` (local takes priority).
+**`core.pod.initContainers`** — delegates each entry to `core.container.render`. Init containers share pod volumes.
 
-```yaml
-{{- with (include "core.pod.imagePullSecrets" $context) }}
-imagePullSecrets: {{ . | indent 6 }}
-{{- end }}
-```
+**`core.pod.topologySpreadConstraints`** — auto-injects `labelSelector`. When absent from values, defaults to hostname + zone spreading with `ScheduleAnyway`. Set to `[]` to disable.
 
-### `core.pod.initContainers`
+**`core.pod.annotations`** — emits `checksum/config` from ConfigMap data, triggering rolling restarts on config changes.
 
-Renders `initContainers` by delegating each entry to `core.container.render`. See [Container helpers](#container-helpers) for the container spec shape. Init containers share the pod's volumes — declare them in the root `volumes` config.
+**`core.pod.serviceaccount`** — returns service account name; resolves `serviceAccount.create` → `core.serviceaccount.name`, else `serviceAccount.name` or `"default"`.
 
-```yaml
-{{- with (include "core.pod.initContainers" $context) }}
-initContainers: {{ . | indent 6 }}
-{{- end }}
-```
-
-### `core.pod.topologySpreadConstraints`
-
-Renders topology spread constraints with an auto-injected `labelSelector`. By default (when the key is absent from values) two constraints are applied — one across hostnames and one across availability zones, both with `whenUnsatisfiable: ScheduleAnyway` so scheduling is never hard-blocked.
-
-Consumer charts should declare the defaults explicitly in their `values.yaml` so users can see and override them. Set `topologySpreadConstraints: []` to disable entirely.
-
-```yaml
-# values
-topologySpreadConstraints:
-  - maxSkew: 1
-    topologyKey: kubernetes.io/hostname
-    whenUnsatisfiable: ScheduleAnyway
-  - maxSkew: 1
-    topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: ScheduleAnyway
-```
-
-### `core.pod.annotations`
-
-Emits a `checksum/config` annotation derived from the ConfigMap data. Changing any ConfigMap value triggers a rolling restart of the deployment.
+**`core.pod.volumeClaimTemplates`** — renders `volumeClaimTemplates` for StatefulSets (one PVC per pod replica).
 
 ---
 
@@ -212,182 +138,68 @@ Emits a `checksum/config` annotation derived from the ConfigMap data. Changing a
 
 ### `core.container.render`
 
-The central container renderer. Produces a single `- name: ...` list item. Used for the main container, init containers, and sidecars.
-
-**Parameters** (all passed via the `$context` dict):
-
-| Key | Type | Required | Description |
-|-----|------|----------|-------------|
-| `name` | string | no | Container name. Defaults to `core.general.name` (use for main container). |
-| `image.url` | string | yes | Image repository URL. Falls back to `global.image.url`. |
-| `image.tag` | string | no | Image tag. Falls back to `global.image.tag`, then `"latest"`. |
-| `image.pullPolicy` | string | no | `Always`, `IfNotPresent`, or `Never`. Default: `IfNotPresent`. |
-| `port` | integer | no | Container port number. |
-| `portName` | string | no | Named port. Default: `"http"`. |
-| `command` | array | no | Entrypoint override. |
-| `args` | array | no | Args override. |
-| `envFrom` | object | no | Bulk environment from ConfigMaps/Secrets. See below. |
-| `env` | object | no | Individual env vars from ConfigMap/Secret keys. See below. |
-| `resources` | object | no | CPU/memory requests and limits. |
-| `volumes` | object | no | Used to generate `volumeMounts`. |
-| `probes` | object | no | `readiness`, `liveness`, `startup` probes. |
-
-**Usage:**
+The central renderer. Produces a single `- name: ...` container entry. Used for main containers, init containers, and sidecars.
 
 ```yaml
-containers: {{ include "core.container.render" $context | nindent 6 }}
+containers:
+  {{- include "core.container.render" $context | nindent 6 }}
 ```
 
-### `core.container.sidecars`
+Defaults the container name to the chart name when `.name` is not set.
 
-Iterates `.sidecars` and calls `core.container.render` for each. Each sidecar entry is a container spec object with `name` required.
+**`core.container.sidecars`** — iterates `sidecars` and calls `core.container.render` for each.
 
-```yaml
-{{- with (include "core.container.sidecars" $context) }}
-{{- . | indent 6 }}
-{{- end }}
-```
+**`core.container.resources`** — CPU limit = `request × limitMultiplier` (default `4`). Memory limit = memory request.
 
-### `core.container.resources`
+**`core.container.envFrom`** — renders `envFrom` entries plus the chart's own ConfigMap when `configMap.data` is set.
 
-Computes requests and limits from the `resources` config:
-
-```yaml
-resources:
-  cpu: 250m      # request
-  memory: 512Mi  # request and limit
-  limitMultiplier: 4  # optional, default 4 — CPU limit = request × multiplier
-```
-
-Result:
-```yaml
-requests:
-  cpu: '250m'
-  memory: '512Mi'
-limits:
-  cpu: '1000m'
-  memory: '512Mi'
-```
-
-### `core.container.envFrom` / `core.container.envFrom.base`
-
-Renders `envFrom` entries. `core.container.envFrom` additionally appends the chart's own generated ConfigMap when `configMap.data` is set. `core.container.envFrom.base` renders only explicitly listed sources.
-
-```yaml
-envFrom:
-  configMaps:
-    shared-config: {}
-  secrets:
-    my-secret: {}
-```
-
-### `core.container.env`
-
-Renders individual environment variables sourced from named keys in ConfigMaps or Secrets. Validates that the referenced key exists in the cluster during real deployments.
-
-```yaml
-env:
-  secrets:
-    my-secret:
-      - key: DB_PASSWORD
-        variable: DATABASE_PASSWORD
-  configMaps:
-    my-config:
-      - key: LOG_LEVEL
-        variable: LOG_LEVEL
-```
-
-### `core.container.volumeMounts`
-
-Renders `volumeMounts` from the `volumes` config. `emptyDir` entries are skipped unless they have a `mountPath`. For `files`-based mounts, each file becomes a separate entry with `subPath`.
+**`core.container.env`** — renders individual env vars from named keys; validates key existence in the cluster during real deployments.
 
 ### Probe helpers
 
-Three helpers — `core.container.readinessProbe`, `core.container.livenessProbe`, `core.container.startupProbe` — all delegate to `core.container.probes`.
-
-**httpGet probe:**
+`core.container.readinessProbe`, `core.container.livenessProbe`, `core.container.startupProbe` — each probe must use exactly one of `httpGet` or `exec`:
 
 ```yaml
 probes:
   readiness:
     httpGet:
-      path: /health
-      scheme: HTTP     # optional, default HTTP
-    failureThreshold: 3
-    initialDelaySeconds: 40
-    periodSeconds: 30
-    successThreshold: 1
-    timeoutSeconds: 20
-```
-
-**exec probe:**
-
-```yaml
-probes:
+      path: /health/ready
   liveness:
+    httpGet:
+      path: /health/live
+  startup:
     exec:
-      command: ["sh", "-c", "pg_isready"]
+      command: ["sh", "-c", "test -f /tmp/ready"]
+    failureThreshold: 30
+    periodSeconds: 10
 ```
 
 ---
 
 ## Resource name helpers
 
-Each resource type has a `core.<type>.name` helper that returns `core.general.name`. They exist as extension points — override them in your chart to customise naming:
+All delegate to `core.general.name` and exist as override extension points:
 
 ```
-core.configmap.name
-core.deployment.name
-core.service.name
-core.cronjob.name
-core.hpa.name
+core.configmap.name    core.cronjob.name     core.daemonset.name
+core.deployment.name   core.hpa.name         core.pdb.name
+core.service.name      core.serviceaccount.name   core.statefulset.name
 ```
 
 ---
 
 ## Cluster lookup helpers
 
-### `core.isRealDeployment`
+**`core.isRealDeployment`** — returns `"true"` only during a real `helm install`/`upgrade`. Set `global.ignoreLookup: "true"` to disable lookups (CI, local rendering).
 
-Returns `"true"` only during a real `helm install`/`upgrade` (not `helm template` or `--dry-run`). Uses `$.Release.IsRender` on Helm 3.13+, falls back to checking the release name placeholder on older versions.
+**`core.cluster.getResource`** — fetches a resource via `lookup`; fails the release if it doesn't exist during live deployments, no-ops otherwise.
 
-Set `global.ignoreLookup: "true"` to disable cluster lookups entirely (required for test/CI rendering without a cluster).
+**`core.configmap.get` / `core.secret.get` / `core.pvc.get`** — convenience wrappers for the three common resource types.
 
-### `core.cluster.getResource`
-
-Fetches a resource from the cluster via `lookup`. Fails the release if the resource does not exist during a real deployment.
-
-### `core.configmap.get` / `core.secret.get`
-
-Convenience wrappers around `core.cluster.getResource` for ConfigMaps and Secrets.
-
-### `core.cluster.checkIfKeyExists`
-
-Fails the release if a specific key is absent from a fetched resource. Used by `core.container.env` to validate env var mappings.
+**`core.cluster.checkIfKeyExists`** — validates a key exists in a fetched resource; used internally by `core.container.env`.
 
 ---
 
-## Test charts
+## Umbrella charts
 
-Two test application charts live under `test-charts/`. They wrap the library so its helpers can be rendered and validated without a deployed application chart.
-
-| Chart | Purpose |
-|-------|---------|
-| `test-charts/single` | Single-chart deployment: configmap, service, deployment |
-| `test-charts/umbrella` | Multi-chart umbrella: `common` (configmap only), `master`, `worker` sub-charts |
-
-Render manually:
-
-```bash
-cd test-charts/single
-helm dependency update
-helm template core-test-single . -f common.values.yaml -f prod.values.yaml
-```
-
-Run unit tests (requires the [helm-unittest](https://github.com/helm-unittest/helm-unittest) plugin):
-
-```bash
-cd test-charts/single
-helm dependency build
-helm unittest -f 'unit-tests/*_test.yaml' .
-```
+Place shared values under `global`. Each sub-chart reads it via `core.general.config` and merges with its own values. See [helm-templates](../helm-templates/README.md) for a no-template approach, or `test-charts/umbrella/` for a full template-authoring example with `master`, `worker`, and `common` sub-charts.
