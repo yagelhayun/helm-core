@@ -1,0 +1,123 @@
+suite: umbrella — master subchart deployment
+templates:
+  - charts/master/templates/deployment.yaml
+tests:
+  - it: uses master-specific replicas from prod values
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # prod.values.yaml: master.replicas: 2
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: uses master-specific port
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common.values.yaml: master.port: 1111
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 1111
+
+  - it: uses master-specific portName
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common.values.yaml: master.portName: api
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: api
+
+  - it: uses master-specific image with prod tag
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common: master.image.url=master, prod: master.image.tag=stable
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: master:stable
+
+  - it: applies master-specific CPU request and default 4x limit
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # prod: master.resources.cpu=3, no limitMultiplier → limit = 3 * 4 = 12
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "3"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "12"
+
+  - it: inherits global imagePullSecrets
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # global.image.pullSecrets: [registry-secret]
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: registry-secret
+
+  - it: inherits global secret volume
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-secret
+            secret:
+              secretName: app-secret
+              defaultMode: 420
+
+  - it: inherits global emptyDir volume
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: writable-tmp
+            emptyDir: {}
+
+  - it: inherits global envFrom secret
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # global.envFrom.secrets.app-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: app-secret
+
+  - it: inherits global envFrom configMap
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # global.envFrom.configMaps.shared-config
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: shared-config
+
+  - it: has no initContainers (master has none configured)
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers

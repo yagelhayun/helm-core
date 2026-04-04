@@ -1,0 +1,121 @@
+suite: umbrella — worker subchart deployment
+templates:
+  - charts/worker/templates/deployment.yaml
+tests:
+  - it: uses worker-specific replicas from prod values
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # prod.values.yaml: worker.replicas: 5
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: uses worker-specific port
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common.values.yaml: worker.port: 9999
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9999
+
+  - it: uses worker-specific portName (grpc)
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common.values.yaml: worker.portName: grpc
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: grpc
+
+  - it: uses worker-specific image with prod tag
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common: worker.image.url=worker, prod: worker.image.tag=stable
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: worker:stable
+
+  - it: applies worker-specific CPU limit multiplier
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # prod: worker.resources.cpu=1, limitMultiplier=2 → limit = 1 * 2 = 2
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "1"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"
+
+  - it: renders worker initContainer name
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common.values.yaml: worker.initContainers[0].name: wait-for-dependency
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-dependency
+
+  - it: renders worker initContainer image
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # common.values.yaml: worker.initContainers[0].image: busybox:1.36
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:1.36
+
+  - it: inherits global imagePullSecrets
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # global.image.pullSecrets: [registry-secret]
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: registry-secret
+
+  - it: inherits global secret volume
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-secret
+            secret:
+              secretName: app-secret
+              defaultMode: 420
+
+  - it: inherits global emptyDir volume
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: writable-tmp
+            emptyDir: {}
+
+  - it: worker and master deployments have isolated selector labels
+    values:
+      - ../common.values.yaml
+      - ../prod.values.yaml
+    # worker chart name is "worker" — selector must not match master
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: worker

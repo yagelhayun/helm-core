@@ -1,4 +1,5 @@
 .git*
-README.md
 test*
+*.lock
+README.md
 .helmignore
