@@ -132,7 +132,7 @@ limits:
   @param  port                   {integer}  container port used when probe.httpGet.port is absent
   @return {string}  YAML probe spec block, or empty string if probe is not set
 */}}
-{{- define "core.container.probes" }}
+{{- define "core.container.probes" -}}
 {{- $port := .port }}
 {{- with .probe }}
 {{- with .httpGet }}
@@ -158,9 +158,11 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   @param  port              {integer} container port
   @return {string}  YAML readinessProbe spec, or empty string
 */}}
-{{- define "core.container.readinessProbe" }}
+{{- define "core.container.readinessProbe" -}}
+{{- if (.probes).readiness }}
 {{- $probeContext := merge (dict "probe" .probes.readiness) . }}
 {{- include "core.container.probes" $probeContext }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -169,9 +171,11 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   @param  port             {integer} container port
   @return {string}  YAML livenessProbe spec, or empty string
 */}}
-{{- define "core.container.livenessProbe" }}
+{{- define "core.container.livenessProbe" -}}
+{{- if (.probes).liveness }}
 {{- $probeContext := merge (dict "probe" .probes.liveness) . }}
 {{- include "core.container.probes" $probeContext }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -180,9 +184,24 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   @param  port            {integer} container port
   @return {string}  YAML startupProbe spec, or empty string
 */}}
-{{- define "core.container.startupProbe" }}
+{{- define "core.container.startupProbe" -}}
+{{- if (.probes).startup }}
 {{- $probeContext := merge (dict "probe" .probes.startup) . }}
 {{- include "core.container.probes" $probeContext }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the container-level securityContext.
+  Controls per-container security settings such as capabilities, readOnlyRootFilesystem,
+  and allowPrivilegeEscalation.
+  @param  containerSecurityContext  {object}  Kubernetes SecurityContext fields
+  @return {string}  YAML securityContext block, or empty string
+*/}}
+{{- define "core.container.securityContext" -}}
+{{- with .containerSecurityContext }}
+{{- toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -232,16 +251,19 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   {{- with (include "core.container.volumeMounts" .) }}
   volumeMounts: {{- . | indent 4 }}
   {{- end }}
-  {{- if (.probes).readiness }}
-  readinessProbe: {{- include "core.container.readinessProbe" . | indent 4 }}
+  {{- with (include "core.container.readinessProbe" .) }}
+  readinessProbe: {{- . | indent 4 }}
   {{- end }}
-  {{- if (.probes).liveness }}
-  livenessProbe: {{- include "core.container.livenessProbe" . | indent 4 }}
+  {{- with (include "core.container.livenessProbe" .) }}
+  livenessProbe: {{- . | indent 4 }}
   {{- end }}
-  {{- if (.probes).startup }}
-  startupProbe: {{- include "core.container.startupProbe" . | indent 4 }}
+  {{- with (include "core.container.startupProbe" .) }}
+  startupProbe: {{- . | indent 4 }}
   {{- end }}
   imagePullPolicy: {{ (.image).pullPolicy | default ((.global).image).pullPolicy | default "IfNotPresent" }}
+  {{- with (include "core.container.securityContext" .) }}
+  securityContext: {{ . | nindent 4 }}
+  {{- end }}
 {{- end }}
 
 {{/*
@@ -251,7 +273,7 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   @param  sidecars {array}   list of container config objects (see core.container.render)
   @return {string}  YAML container list items, or empty string if sidecars is empty
 */}}
-{{- define "core.container.sidecars" }}
+{{- define "core.container.sidecars" -}}
 {{- $ := (index . "$") }}
 {{- range .sidecars }}
 {{- include "core.container.render" (merge (dict "$" $) .) }}
@@ -266,7 +288,7 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   @param  global.image  {object}  global image fallback { url, tag }
   @return {string}  image reference string, e.g. "myrepo/myapp:v1.2.3"
 */}}
-{{- define "core.container.image" }}
+{{- define "core.container.image" -}}
 {{- $imageURL := (.image).url | default ((.global).image).url }}
 {{- $imageTag := (.image).tag | default ((.global).image).tag | default "latest" }}
 {{- printf "%s:%s" $imageURL $imageTag }}

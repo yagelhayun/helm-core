@@ -7,6 +7,18 @@ tasks:
       - rm -f core-*.tgz
       - helm package .
 
+  template:single:
+    desc: Render test-charts/single
+    cmds:
+      - helm dependency update test-charts/single
+      - helm template test test-charts/single -f test-charts/single/common.values.yaml
+
+  template:umbrella:
+    desc: Render test-charts/umbrella
+    cmds:
+      - helm dependency update test-charts/umbrella
+      - helm template test test-charts/umbrella -f test-charts/umbrella/common.values.yaml
+
   test:
     desc: Run helm-core unit tests
     cmds:

@@ -2,4 +2,4 @@ apiVersion: v2
 name: core
 description: Library of reusable Helm template helpers for rendering Kubernetes workloads. Not deployed directly — consumed as a dependency by application charts.
 type: library
-version: 0.3.1
+version: 0.3.2

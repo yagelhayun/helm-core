@@ -69,7 +69,7 @@
   @param  initContainers  {array}  list of container config objects (see core.container.render)
   @return {string}  YAML list of init container objects, or empty string
 */}}
-{{- define "core.pod.initContainers" }}
+{{- define "core.pod.initContainers" -}}
 {{- range .initContainers }}
 {{- include "core.container.render" . }}
 {{- end }}
@@ -145,6 +145,133 @@
 {{- define "core.pod.annotations" -}}
 {{- if (.configMap).data }}
 checksum/config: {{ .configMap.data | toYaml | sha256sum }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the nodeSelector for a pod spec.
+  Simple key-value map used to constrain pods to nodes with matching labels.
+  @param  nodeSelector  {object}  map of label key → value
+  @return {string}  YAML nodeSelector map, or empty string
+*/}}
+{{- define "core.pod.nodeSelector" -}}
+{{- with .nodeSelector }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the tolerations list for a pod spec.
+  Allows pods to be scheduled on nodes carrying matching taints.
+  @param  tolerations  {array}  list of toleration objects
+  @return {string}  YAML tolerations list, or empty string
+*/}}
+{{- define "core.pod.tolerations" -}}
+{{- with .tolerations }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the affinity block for a pod spec using a simplified API.
+  Supports nodeAffinity and podAntiAffinity with short-form inputs.
+  For nodeAffinity, required and preferred are lists of matchExpression objects.
+  All required expressions are AND-ed inside a single nodeSelectorTerm.
+  For podAntiAffinity, only topologyKey (and weight for preferred) are needed —
+  the labelSelector is auto-injected from core.general.selectorLabels.
+  @param  $                                   {object}  Helm root context
+  @param  affinity.nodeAffinity.required       {array}   list of { key, operator, values? }
+  @param  affinity.nodeAffinity.preferred      {array}   list of { weight, key, operator, values? }
+  @param  affinity.podAntiAffinity.required    {array}   list of { topologyKey }
+  @param  affinity.podAntiAffinity.preferred   {array}   list of { weight, topologyKey }
+  @return {string}  YAML affinity block, or empty string
+*/}}
+{{- define "core.pod.affinity" -}}
+{{- $ctx := . }}
+{{- with .affinity }}
+{{- with .nodeAffinity }}
+nodeAffinity:
+{{- if .required }}
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+        {{- range .required }}
+        - key: {{ .key }}
+          operator: {{ .operator }}
+          {{- if .values }}
+          values:
+            {{- range .values }}
+            - {{ . }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+    {{- end }}
+{{- if .preferred }}
+  preferredDuringSchedulingIgnoredDuringExecution:
+  {{- range .preferred }}
+  - weight: {{ .weight }}
+    preference:
+      matchExpressions:
+        - key: {{ .key }}
+          operator: {{ .operator }}
+          {{- if .values }}
+          values:
+            {{- range .values }}
+            - {{ . }}
+            {{- end }}
+          {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- with .podAntiAffinity }}
+podAntiAffinity:
+{{- if .required }}
+  requiredDuringSchedulingIgnoredDuringExecution:
+  {{- range .required }}
+  - topologyKey: {{ .topologyKey }}
+    labelSelector:
+      matchLabels: {{ include "core.general.selectorLabels" $ctx | nindent 8 }}
+  {{- end }}
+{{- end }}
+{{- if .preferred }}
+  preferredDuringSchedulingIgnoredDuringExecution:
+  {{- range .preferred }}
+  - weight: {{ .weight }}
+    podAffinityTerm:
+      topologyKey: {{ .topologyKey }}
+      labelSelector:
+        matchLabels: {{ include "core.general.selectorLabels" $ctx | nindent 10 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the pod-level securityContext.
+  Controls pod-wide security settings such as fsGroup, runAsUser, and sysctls.
+  @param  podSecurityContext  {object}  Kubernetes PodSecurityContext fields
+  @return {string}  YAML securityContext block, or empty string
+*/}}
+{{- define "core.pod.securityContext" -}}
+{{- with .podSecurityContext }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the priorityClassName for a pod spec.
+  Validates that the referenced PriorityClass exists in the cluster during live
+  deployments. No-ops during helm template, dry-run, or when ignoreLookup is set.
+  @param  $                  {object}  Helm root context (for cluster lookup)
+  @param  priorityClassName  {string}  name of a PriorityClass resource
+  @return {string}  priority class name, or empty string
+*/}}
+{{- define "core.pod.priorityClassName" -}}
+{{- $ := (index . "$") }}
+{{- with .priorityClassName }}
+{{- $_ := include "core.priorityclass.get" (dict "$" $ "name" .) }}
+{{- . }}
 {{- end }}
 {{- end }}
 

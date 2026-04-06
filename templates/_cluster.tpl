@@ -37,7 +37,8 @@
 {{- define "core.cluster.getResource" -}}
 {{- $ := (index . "$") }}
 {{- $isRealDeployment := eq (include "core.isRealDeployment" .) "true" -}}
-{{- $resource := (lookup (.version | default "v1") .type $.Release.Namespace .name) -}}
+{{- $namespace := ternary .namespace $.Release.Namespace (hasKey . "namespace") -}}
+{{- $resource := (lookup (.version | default "v1") .type $namespace .name) -}}
 
 {{- if and $isRealDeployment (not $resource) -}}
   {{- fail (cat .type (.name | squote) "doesn't exist") -}}
