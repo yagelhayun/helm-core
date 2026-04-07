@@ -53,6 +53,16 @@ rollingUpdate:
   @param  global.commit  {string|integer}   git commit SHA or build number (optional)
   @return {string}  YAML key-value label block
 */}}
+{{/*
+  Returns the revisionHistoryLimit for a workload, defaulting to 1.
+  Uses ternary+kindIs to distinguish "not set" (nil) from an explicit 0.
+  @param  revisionHistoryLimit  {integer}  number of old ReplicaSets to retain (optional)
+  @return {integer}  revisionHistoryLimit value
+*/}}
+{{- define "core.workload.revisionHistoryLimit" -}}
+{{- ternary 1 (int .revisionHistoryLimit) (kindIs "invalid" .revisionHistoryLimit) }}
+{{- end }}
+
 {{- define "core.workload.labels" -}}
 {{- include "core.general.labels" . -}}
 {{- $ := (index . "$") }}

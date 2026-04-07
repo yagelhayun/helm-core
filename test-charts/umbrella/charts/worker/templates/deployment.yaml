@@ -9,7 +9,7 @@ spec:
   replicas: {{ include "core.workload.replicas" $context }}
   selector:
     matchLabels: {{ include "core.general.selectorLabels" $context | nindent 6 }}
-  revisionHistoryLimit: {{ ternary 1 (int $config.revisionHistoryLimit) (kindIs "invalid" $config.revisionHistoryLimit) }}
+  revisionHistoryLimit: {{ include "core.workload.revisionHistoryLimit" $context }}
   strategy: {{ include "core.workload.strategy" $context | nindent 4 }}
   template:
     metadata:
@@ -32,7 +32,7 @@ spec:
       {{- if $initContainers }}
       initContainers: {{ $initContainers | indent 6 }}
       {{- end }}
-      terminationGracePeriodSeconds: {{ ternary 30 (int $context.terminationGracePeriodSeconds) (kindIs "invalid" $context.terminationGracePeriodSeconds) }}
+      terminationGracePeriodSeconds: {{ include "core.pod.terminationGracePeriodSeconds" $context }}
       topologySpreadConstraints: {{ include "core.pod.topologySpreadConstraints" $context | nindent 6 }}
       containers: 
         {{- include "core.container.render" $context | indent 8 }}

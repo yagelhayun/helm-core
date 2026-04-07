@@ -87,15 +87,11 @@
 */}}
 {{- define "core.pod.topologySpreadConstraints" -}}
 {{- $ctx := . }}
-{{- $constraints := .topologySpreadConstraints }}
-{{- /* kindIs "invalid": key was not set at all (Go nil) — apply library-level defaults.
-       Consumers using helm-templates get these from values.yaml instead. */}}
-{{- if kindIs "invalid" $constraints }}
-{{- $constraints = list
+{{- $defaultConstraints := list
   (dict "maxSkew" 1 "topologyKey" "kubernetes.io/hostname"      "whenUnsatisfiable" "ScheduleAnyway")
   (dict "maxSkew" 1 "topologyKey" "topology.kubernetes.io/zone" "whenUnsatisfiable" "ScheduleAnyway")
 }}
-{{- end }}
+{{- $constraints := ternary $defaultConstraints .topologySpreadConstraints (kindIs "invalid" .topologySpreadConstraints) }}
 {{- range $constraints }}
 - maxSkew: {{ .maxSkew }}
   topologyKey: {{ .topologyKey }}
@@ -285,6 +281,16 @@ podAntiAffinity:
   @param  serviceAccount.create  {boolean}  whether the chart manages this SA (optional)
   @return {string}  service account name
 */}}
+{{/*
+  Returns the terminationGracePeriodSeconds for a pod, defaulting to 30.
+  Uses ternary+kindIs to distinguish "not set" (nil) from an explicit 0.
+  @param  terminationGracePeriodSeconds  {integer}  seconds to wait after SIGTERM before SIGKILL (optional)
+  @return {integer}  terminationGracePeriodSeconds value
+*/}}
+{{- define "core.pod.terminationGracePeriodSeconds" -}}
+{{- ternary 30 (int .terminationGracePeriodSeconds) (kindIs "invalid" .terminationGracePeriodSeconds) }}
+{{- end }}
+
 {{- define "core.pod.serviceaccount" -}}
 {{- if (.serviceAccount).create }}
 {{- include "core.serviceaccount.name" . }}

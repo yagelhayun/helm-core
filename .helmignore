@@ -1,6 +1,6 @@
 .git*
 test*
 *.lock
-README.md
+*.md
 Taskfile.yml
 .helmignore
