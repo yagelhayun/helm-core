@@ -6,7 +6,7 @@
   @param  volumes  {object}  volumes config map with keys: secrets, configMaps, empty
   @return {string}  YAML list of volumeMount objects, or empty string if no volumes
 */}}
-{{- define "core.container.volumeMounts" -}}
+{{- define "core.container.volumeMounts.base" -}}
 {{- range $typeName, $resources := .volumes }}
 {{- range $resourceName, $resourceParams := $resources }}
 {{- if $resourceParams.files }}
@@ -24,6 +24,25 @@
 {{- end }}
 
 {{/*
+  Renders the full volumeMounts list, including an auto-generated entry for the
+  inline ConfigMap when configMap.as is "volume".
+  @param  volumes    {object}  volumes config map with keys: secrets, configMaps, empty
+  @param  configMap  {object}  inline configMap config; when as: volume, appends a mount
+  @return {string}  YAML list of volumeMount objects, or empty string if no volumes
+*/}}
+{{- define "core.container.volumeMounts" -}}
+{{- include "core.container.volumeMounts.base" . }}
+{{- if eq ((.configMap).as) "volume" }}
+{{- $cmName := include "core.configmap.name" . }}
+{{- if and (.volumes).configMaps (hasKey (.volumes).configMaps $cmName) }}
+{{- fail (printf "'%s' is already listed under volumes.configMaps — remove the duplicate entry" $cmName) }}
+{{- end }}
+- name: {{ $cmName }}
+  mountPath: {{ (.configMap).mountPath }}
+{{- end }}
+{{- end }}
+
+{{/*
   Renders envFrom entries for named ConfigMaps and Secrets.
   Internal helper used by core.container.envFrom; does not include the
   inline ConfigMap generated from configMap.data.
@@ -34,13 +53,17 @@
 */}}
 {{- define "core.container.envFrom.base" -}}
 {{- $ := (index . "$") }}
+{{- $ctx := . }}
 {{- with .envFrom -}}
 {{- range $resourceName, $_ := .configMaps }}
+{{- if ne $resourceName (include "core.configmap.name" $ctx) }}
+{{- $_ := include "core.configmap.get" (dict "$" $ "name" $resourceName) | fromYaml }}
+{{- end }}
 - configMapRef:
     name: {{ $resourceName }}
 {{- end }}
 {{- range $resourceName, $_ := .secrets }}
-{{- $secret := include "core.secret.get" (dict "$" $ "name" $resourceName) }}
+{{- $_ := include "core.secret.get" (dict "$" $ "name" $resourceName) }}
 - secretRef:
     name: {{ $resourceName }}
 {{- end }}
@@ -60,9 +83,13 @@
 */}}
 {{- define "core.container.envFrom" -}}
 {{ include "core.container.envFrom.base" . }}
-{{- if (.configMap).data }}
+{{- if and (.configMap).data (eq ((.configMap).as | default "env") "env") }}
+{{- $cmName := include "core.configmap.name" . }}
+{{- if and (.envFrom).configMaps (hasKey (.envFrom).configMaps $cmName) }}
+{{- fail (printf "'%s' is already listed under envFrom.configMaps — remove the duplicate entry" $cmName) }}
+{{- end }}
 - configMapRef:
-    name: {{ include (.configmapNameCallback | default "core.configmap.name") . }}
+    name: {{ $cmName }}
 {{- end }}
 {{- end }}
 

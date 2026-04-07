@@ -11,19 +11,22 @@
   @param  volumes.persistentVolumeClaims {object}  map of PVC name → { mountPath, readOnly? }
   @return {string}  YAML list of volume objects, or empty string if no volumes
 */}}
-{{- define "core.pod.volumes" -}}
+{{- define "core.pod.volumes.base" -}}
 {{- $ := (index . "$") }}
+{{- $ctx := . }}
 {{- $defaultPermissions := 420 }}
 {{- with .volumes }}
 {{- range $resourceName, $resourceParams := .configMaps }}
-{{- $configMap := include "core.configmap.get" (dict "$" $ "name" $resourceName) | fromYaml }}
+{{- if ne $resourceName (include "core.configmap.name" $ctx) }}
+{{- $_ := include "core.configmap.get" (dict "$" $ "name" $resourceName) | fromYaml }}
+{{- end }}
 - name: {{ $resourceName }}
   configMap:
     name: {{ $resourceName }}
     defaultMode: {{ ($resourceParams).defaultMode | default $defaultPermissions }}
 {{- end }}
 {{- range $resourceName, $resourceParams := .secrets }}
-{{- $secret := include "core.secret.get" (dict "$" $ "name" $resourceName) | fromYaml }}
+{{- $_ := include "core.secret.get" (dict "$" $ "name" $resourceName) | fromYaml }}
 - name: {{ $resourceName }}
   secret:
     secretName: {{ $resourceName }}
@@ -42,6 +45,28 @@
     readOnly: true
     {{- end }}
 {{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the full volumes list, including an auto-generated entry for the
+  inline ConfigMap when configMap.as is "volume".
+  @param  $          {object}  Helm root context (for cluster lookups)
+  @param  volumes    {object}  volumes config map with keys: secrets, configMaps, empty
+  @param  configMap  {object}  inline configMap config; when as: volume, appends a volume entry
+  @return {string}  YAML list of volume objects, or empty string if no volumes
+*/}}
+{{- define "core.pod.volumes" -}}
+{{- include "core.pod.volumes.base" . }}
+{{- if eq ((.configMap).as) "volume" }}
+{{- $cmName := include "core.configmap.name" . }}
+{{- if and (.volumes).configMaps (hasKey (.volumes).configMaps $cmName) }}
+{{- fail (printf "'%s' is already listed under volumes.configMaps — remove the duplicate entry" $cmName) }}
+{{- end }}
+- name: {{ $cmName }}
+  configMap:
+    name: {{ $cmName }}
+    defaultMode: 420
 {{- end }}
 {{- end }}
 

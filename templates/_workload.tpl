@@ -23,8 +23,8 @@
 type: {{ $type }}
 {{- if eq $type "RollingUpdate" }}
 rollingUpdate:
-  {{- if not (kindIs "invalid" (.strategy).partition) }}
-  partition: {{ (.strategy).partition }}
+  {{- with (.strategy).partition }}
+  partition: {{ . }}
   {{- else }}
   maxUnavailable: {{ (.strategy).maxUnavailable | default "25%" | quote }}
   maxSurge: {{ (.strategy).maxSurge | default "25%" | quote }}
