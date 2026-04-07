@@ -3,3 +3,7 @@ name: core
 description: Library of reusable Helm template helpers for rendering Kubernetes workloads. Not deployed directly — consumed as a dependency by application charts.
 type: library
 version: 0.3.4
+maintainers:
+  - name: Yagel Hayun
+sources:
+  - https://github.com/yagelhayun/helm-core
