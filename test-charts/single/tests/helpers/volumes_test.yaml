@@ -2,9 +2,12 @@ suite: core.pod.volumes and core.container.volumeMounts
 templates:
   - templates/deployment.yaml
 tests:
-  - it: renders a secret volume
+
+  # ── Secret volume ─────────────────────────────────────────────────────────────
+
+  - it: renders secret volume with correct defaultMode
     values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
     asserts:
       - contains:
           path: spec.template.spec.volumes
@@ -14,19 +17,9 @@ tests:
               secretName: app-secret
               defaultMode: 420
 
-  - it: renders an emptyDir volume
+  - it: renders volumeMount for secret volume
     values:
-      - ../common.values.yaml
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: writable-tmp
-            emptyDir: {}
-
-  - it: renders a volumeMount for a secret volume
-    values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -34,9 +27,21 @@ tests:
             name: app-secret
             mountPath: /run/secrets
 
-  - it: renders a volumeMount for an emptyDir volume
+  # ── emptyDir volume ───────────────────────────────────────────────────────────
+
+  - it: renders emptyDir volume
     values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: writable-tmp
+            emptyDir: {}
+
+  - it: renders volumeMount for emptyDir volume
+    values:
+      - ../_shared/common.yaml
     asserts:
       - contains:
           path: spec.template.spec.containers[0].volumeMounts
@@ -44,9 +49,11 @@ tests:
             name: writable-tmp
             mountPath: /tmp/scratch
 
-  - it: renders a persistentVolumeClaim volume
+  # ── PersistentVolumeClaim volume ──────────────────────────────────────────────
+
+  - it: renders persistentVolumeClaim volume
     values:
-      - ../minimal.values.yaml
+      - ../_shared/minimal.yaml
     set:
       global.ignoreLookup: "true"
       volumes.persistentVolumeClaims.my-data.mountPath: /data
@@ -58,9 +65,9 @@ tests:
             persistentVolumeClaim:
               claimName: my-data
 
-  - it: renders a readOnly persistentVolumeClaim volume
+  - it: renders readOnly persistentVolumeClaim volume
     values:
-      - ../minimal.values.yaml
+      - ../_shared/minimal.yaml
     set:
       global.ignoreLookup: "true"
       volumes.persistentVolumeClaims.my-data.mountPath: /data
@@ -74,9 +81,9 @@ tests:
               claimName: my-data
               readOnly: true
 
-  - it: renders a volumeMount for a persistentVolumeClaim volume
+  - it: renders volumeMount for persistentVolumeClaim
     values:
-      - ../minimal.values.yaml
+      - ../_shared/minimal.yaml
     set:
       global.ignoreLookup: "true"
       volumes.persistentVolumeClaims.my-data.mountPath: /data
@@ -87,9 +94,11 @@ tests:
             name: my-data
             mountPath: /data
 
+  # ── Absent ────────────────────────────────────────────────────────────────────
+
   - it: renders no volumes when volumes is not set
     values:
-      - ../minimal.values.yaml
+      - ../_shared/minimal.yaml
     asserts:
       - notExists:
           path: spec.template.spec.volumes

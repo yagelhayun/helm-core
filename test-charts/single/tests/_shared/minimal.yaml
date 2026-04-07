@@ -4,6 +4,9 @@ global:
   region: us-east-1
   ignoreLookup: "true"
 
+workload:
+  type: Deployment
+
 port: 8080
 replicas: 1
 resources:

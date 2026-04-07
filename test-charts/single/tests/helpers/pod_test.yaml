@@ -1,0 +1,58 @@
+suite: core.pod — topology labelSelector injection and checksum annotation
+templates:
+  - templates/deployment.yaml
+tests:
+
+  # ── topologySpreadConstraints ─────────────────────────────────────────────────
+  # core.pod.topologySpreadConstraints auto-injects labelSelector — verify it
+  # produces the correct selector rather than requiring the user to set it.
+
+  - it: auto-injects labelSelector into default topology spread constraints
+    values:
+      - ../_shared/minimal.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.topologySpreadConstraints
+          content:
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: core-test-single
+      - contains:
+          path: spec.template.spec.topologySpreadConstraints
+          content:
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: core-test-single
+
+  - it: omits topologySpreadConstraints when set to empty list
+    values:
+      - ../_shared/minimal.yaml
+    set:
+      topologySpreadConstraints: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  # ── checksum annotation ───────────────────────────────────────────────────────
+  # core.pod.annotations computes a checksum of configMap.data to trigger
+  # rolling restarts when config changes.
+
+  - it: injects checksum annotation when configMap.data is set
+    values:
+      - ../_shared/common.yaml
+    asserts:
+      - exists:
+          path: spec.template.metadata.annotations["checksum/config"]
+
+  - it: omits pod annotations when configMap.data is not set
+    values:
+      - ../_shared/minimal.yaml
+    asserts:
+      - notExists:
+          path: spec.template.metadata.annotations

@@ -1,55 +1,58 @@
-suite: umbrella — configmap data and region merging
+suite: umbrella — configMap data, region merging, and per-component labels
 tests:
-  - it: common configmap renders static FEATURE_FLAG
+
+  # ── common configMap ──────────────────────────────────────────────────────────
+
+  - it: common configmap renders static data
     templates:
       - charts/common/templates/configmap.yaml
     values:
-      - ../common.values.yaml
+      - ./_shared/common.yaml
     asserts:
       - equal:
           path: data.FEATURE_FLAG
           value: "true"
 
-  - it: common configmap resolves tpl expression for PORT from global.port
+  - it: common configmap resolves tpl expression from global.port
     templates:
       - charts/common/templates/configmap.yaml
     values:
-      - ../common.values.yaml
+      - ./_shared/common.yaml
     # common.configMap.data.PORT: "{{ .Values.global.port }}" → "8080"
     asserts:
       - equal:
           path: data.PORT
           value: "8080"
 
-  - it: common configmap resolves tpl expression for CACHE_DIR from global volumes
+  - it: common configmap resolves tpl expression referencing global volumes
     templates:
       - charts/common/templates/configmap.yaml
     values:
-      - ../common.values.yaml
+      - ./_shared/common.yaml
     # CACHE_DIR: '{{ index .Values.global.volumes.secrets "app-secret" "mountPath" }}' → /run/secrets
     asserts:
       - equal:
           path: data.CACHE_DIR
           value: /run/secrets
 
-  - it: common configmap applies us-west-1 region override from prod values
+  - it: common configmap applies region override for us-west-1
     templates:
       - charts/common/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
-    # global.region=us-west-1; prod.common.regions.us-west-1.configMap.data.BROKER_ADDRESS
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    # global.region=us-west-1
     asserts:
       - equal:
           path: data.BROKER_ADDRESS
           value: broker.us-west-1.example.com:9092
 
-  - it: common configmap applies us-east-1 region override when region changes
+  - it: common configmap applies region override for us-east-1 when region changes
     templates:
       - charts/common/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
     set:
       global.region: us-east-1
     asserts:
@@ -57,36 +60,36 @@ tests:
           path: data.DB_URL
           value: postgresql://db.us-east-1.example.com:5432/myapp
 
-  - it: common configmap merges prod static data (DB_SSL_ENABLED)
+  - it: common configmap merges prod static data
     templates:
       - charts/common/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
     asserts:
       - equal:
           path: data.DB_SSL_ENABLED
           value: "true"
 
-  - it: master configmap renders per-component mode value
+  # ── per-component configMaps ──────────────────────────────────────────────────
+
+  - it: master configmap renders per-component data
     templates:
       - charts/master/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
-    # common.values.yaml: master.configMap.data.mode: master
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
     asserts:
       - equal:
           path: data.mode
           value: master
 
-  - it: worker configmap renders per-component mode value
+  - it: worker configmap renders per-component data
     templates:
       - charts/worker/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
-    # common.values.yaml: worker.configMap.data.mode: worker
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
     asserts:
       - equal:
           path: data.mode
@@ -96,8 +99,8 @@ tests:
     templates:
       - charts/master/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
     asserts:
       - equal:
           path: metadata.labels["app.kubernetes.io/name"]
@@ -107,8 +110,8 @@ tests:
     templates:
       - charts/worker/templates/configmap.yaml
     values:
-      - ../common.values.yaml
-      - ../prod.values.yaml
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
     asserts:
       - equal:
           path: metadata.labels["app.kubernetes.io/name"]

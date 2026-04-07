@@ -1,0 +1,161 @@
+suite: umbrella — per-component values override globals
+tests:
+
+  # ── master ────────────────────────────────────────────────────────────────────
+
+  - it: uses master-specific replicas
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 2
+
+  - it: uses master-specific port
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 1111
+
+  - it: uses master-specific portName
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: api
+
+  - it: uses master-specific image with prod tag
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: master:stable
+
+  - it: applies master-specific CPU request and default 4x limit
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    # prod: master.resources.cpu=3, no limitMultiplier → limit = 3 * 4 = 12
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "3"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "12"
+
+  - it: master has no initContainers
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.initContainers
+
+  # ── worker ────────────────────────────────────────────────────────────────────
+
+  - it: uses worker-specific replicas
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 5
+
+  - it: uses worker-specific port
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9999
+
+  - it: uses worker-specific portName
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: grpc
+
+  - it: uses worker-specific image with prod tag
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: worker:stable
+
+  - it: applies worker-specific CPU limit multiplier
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    # prod: worker.resources.cpu=1, limitMultiplier=2 → limit = 1 * 2 = 2
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: "1"
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: "2"
+
+  - it: renders worker initContainer
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: wait-for-dependency
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: busybox:1.36
+
+  # ── Isolation ─────────────────────────────────────────────────────────────────
+
+  - it: worker and master have isolated selector labels
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: worker

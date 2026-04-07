@@ -1,0 +1,114 @@
+suite: umbrella — global values propagate into every sub-chart
+tests:
+
+  # ── imagePullSecrets ──────────────────────────────────────────────────────────
+
+  - it: master inherits global imagePullSecrets
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: registry-secret
+
+  - it: worker inherits global imagePullSecrets
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.imagePullSecrets
+          content:
+            name: registry-secret
+
+  # ── volumes ───────────────────────────────────────────────────────────────────
+
+  - it: master inherits global secret volume
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-secret
+            secret:
+              secretName: app-secret
+              defaultMode: 420
+
+  - it: worker inherits global secret volume
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: app-secret
+            secret:
+              secretName: app-secret
+              defaultMode: 420
+
+  - it: master inherits global emptyDir volume
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: writable-tmp
+            emptyDir: {}
+
+  - it: worker inherits global emptyDir volume
+    templates:
+      - charts/worker/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: writable-tmp
+            emptyDir: {}
+
+  # ── envFrom ───────────────────────────────────────────────────────────────────
+
+  - it: master inherits global envFrom secret
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: app-secret
+
+  - it: master inherits global envFrom configMap
+    templates:
+      - charts/master/templates/deployment.yaml
+    values:
+      - ./_shared/common.yaml
+      - ./_shared/prod.yaml
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: shared-config

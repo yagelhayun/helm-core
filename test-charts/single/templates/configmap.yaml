@@ -1,11 +1,21 @@
+{{- if .Values.configMap.enabled }}
 {{- $config := include "core.general.config" . | fromYaml }}
 {{- $context := merge (dict "$" $) $config }}
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: {{ include "core.configmap.name" $context }}
-  labels: {{ include "core.general.labels" $context | nindent 4 }}
+  labels:
+    {{- include "core.general.labels" $context | nindent 4 }}
+    {{- with $config.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with ($config.annotations).configMap }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 data:
-{{- range $key, $value := ($context.configMap).data }}
+{{- range $key, $value := ($config.configMap).data }}
   {{ $key }}: {{ $value | quote }}
+{{- end }}
 {{- end }}

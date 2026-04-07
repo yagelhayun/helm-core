@@ -1,19 +1,19 @@
-suite: core.general.config — region merging
+suite: core.general.config — region merging and tpl resolution
 templates:
   - templates/configmap.yaml
 tests:
-  - it: applies region-specific configMap data when region matches
+  - it: applies region-specific data when region matches
     values:
-      - ../common.values.yaml
-    # global.region=us-west-1; regions.us-west-1.configMap.data.ENDPOINT=storage.us-west-1.example.com
+      - ../_shared/common.yaml
+    # global.region=us-west-1 → ENDPOINT from regions.us-west-1
     asserts:
       - equal:
           path: data.ENDPOINT
           value: storage.us-west-1.example.com
 
-  - it: applies a different region's configMap data when region changes
+  - it: applies the correct override when region changes
     values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
     set:
       global.region: us-east-1
     asserts:
@@ -23,16 +23,16 @@ tests:
 
   - it: preserves root-level keys that have no region override
     values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
     asserts:
       - equal:
           path: data.KEY1
           value: VALUE
 
-  - it: region override merges into root-level keys rather than replacing them
+  - it: merges region override into root-level keys rather than replacing them
     values:
-      - ../common.values.yaml
-    # KEY1 is root-only; ENDPOINT is region-only — both should appear
+      - ../_shared/common.yaml
+    # KEY1 is root-only; ENDPOINT is region-only — both must appear
     asserts:
       - equal:
           path: data.KEY1
@@ -43,7 +43,7 @@ tests:
 
   - it: resolves tpl expressions inside configMap data values
     values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
     # PORT: "{{ .Values.port }}" should resolve to "5000"
     asserts:
       - equal:

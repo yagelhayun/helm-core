@@ -31,6 +31,7 @@ global:
 
 common:
   configMap:
+    enabled: true
     data:
       FEATURE_FLAG: "true"
       CACHE_DIR: '{{ index .Values.global.volumes.secrets "app-secret" "mountPath" }}'
@@ -41,6 +42,7 @@ worker:
   portName: grpc
 
   configMap:
+    enabled: true
     data:
       mode: worker
 
@@ -63,6 +65,7 @@ master:
   portName: api
 
   configMap:
+    enabled: true
     data:
       mode: master
 

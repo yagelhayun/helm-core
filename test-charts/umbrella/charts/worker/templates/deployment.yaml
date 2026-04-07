@@ -4,7 +4,15 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ include "core.deployment.name" $context }}
-  labels: {{ include "core.workload.labels" $context | nindent 4 }}
+  labels:
+    {{- include "core.workload.labels" $context | nindent 4 }}
+    {{- with $config.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with ($config.annotations).deployment }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   replicas: {{ include "core.workload.replicas" $context }}
   selector:
@@ -14,27 +22,40 @@ spec:
   template:
     metadata:
       labels: {{ include "core.general.selectorLabels" $context | nindent 8 }}
-      {{- $annotations := include "core.pod.annotations" $context }}
-      {{- if $annotations }}
-      annotations: {{ $annotations | indent 8 }}
+      {{- with (include "core.pod.annotations" $context) }}
+      annotations: {{ . | indent 8 }}
       {{- end }}
     spec:
       serviceAccountName: {{ include "core.pod.serviceaccount" $context }}
-      {{- $imagePullSecrets := include "core.pod.imagePullSecrets" $context }}
-      {{- if $imagePullSecrets }}
-      imagePullSecrets: {{ $imagePullSecrets | indent 6 }}
+      {{- with (include "core.pod.imagePullSecrets" $context) }}
+      imagePullSecrets: {{ . | indent 8 }}
       {{- end }}
-      {{- $volumes := include "core.pod.volumes" $context }}
-      {{- if $volumes }}
-      volumes: {{ $volumes | indent 6 }}
+      {{- with (include "core.pod.volumes" $context) }}
+      volumes: {{ . | indent 8 }}
       {{- end }}
-      {{- $initContainers := include "core.pod.initContainers" $context }}
-      {{- if $initContainers }}
-      initContainers: {{ $initContainers | indent 6 }}
+      {{- with (include "core.pod.initContainers" $context) }}
+      initContainers: {{ . | indent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: {{ include "core.pod.terminationGracePeriodSeconds" $context }}
-      topologySpreadConstraints: {{ include "core.pod.topologySpreadConstraints" $context | nindent 6 }}
-      containers: 
+      {{- with (include "core.pod.topologySpreadConstraints" $context) }}
+      topologySpreadConstraints: {{ . | indent 8 }}
+      {{- end }}
+      {{- with (include "core.pod.priorityClassName" $context) }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      {{- with (include "core.pod.nodeSelector" $context) }}
+      nodeSelector: {{ . | nindent 8 }}
+      {{- end }}
+      {{- with (include "core.pod.affinity" $context) }}
+      affinity: {{ . | nindent 8 }}
+      {{- end }}
+      {{- with (include "core.pod.tolerations" $context) }}
+      tolerations: {{ . | nindent 8 }}
+      {{- end }}
+      {{- with (include "core.pod.securityContext" $context) }}
+      securityContext: {{ . | nindent 8 }}
+      {{- end }}
+      containers:
         {{- include "core.container.render" $context | indent 8 }}
         {{- with (include "core.container.sidecars" $context) }}
         {{- . | indent 8 }}

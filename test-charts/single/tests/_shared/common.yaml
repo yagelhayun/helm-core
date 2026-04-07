@@ -2,6 +2,9 @@ global:
   region: us-west-1
   ignoreLookup: "true"
 
+workload:
+  type: Deployment
+
 activeRegion: us-west-1
 
 port: 5000
@@ -45,6 +48,7 @@ env:
         variable: DATABASE_HOSTS
 
 configMap:
+  enabled: true
   data:
     KEY1: "VALUE"
     KEY2: "4565"

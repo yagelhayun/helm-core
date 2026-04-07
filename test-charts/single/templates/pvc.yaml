@@ -6,6 +6,10 @@ apiVersion: v1
 metadata:
   name: {{ $name }}
   labels: {{ include "core.general.labels" $context | nindent 4 }}
+  {{- with ($context.annotations).persistentVolumeClaim }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   {{- with $params.storageClass }}
   storageClassName: {{ . }}

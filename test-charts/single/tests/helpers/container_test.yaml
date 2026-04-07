@@ -1,0 +1,79 @@
+suite: core.container.render — image composition and probe defaults
+templates:
+  - templates/deployment.yaml
+tests:
+
+  # ── Image ────────────────────────────────────────────────────────────────────
+
+  - it: renders image as url:tag
+    values:
+      - ../_shared/common.yaml
+      - ../_shared/prod.yaml
+    # image.url=myrepo/myapp, prod image.tag=v1.2.3
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: myrepo/myapp:v1.2.3
+
+  - it: defaults image tag to latest when not specified
+    values:
+      - ../_shared/common.yaml
+    # common.yaml has no image.tag
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: myrepo/myapp:latest
+
+  # ── Probe defaults ────────────────────────────────────────────────────────────
+
+  - it: applies default failureThreshold of 3 when not configured
+    values:
+      - ../_shared/minimal.yaml
+    set:
+      probes.readiness.httpGet.path: /health
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.failureThreshold
+          value: 3
+
+  - it: applies default periodSeconds of 30 when not configured
+    values:
+      - ../_shared/minimal.yaml
+    set:
+      probes.readiness.httpGet.path: /health
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 30
+
+  - it: applies default initialDelaySeconds of 40 when not configured
+    values:
+      - ../_shared/minimal.yaml
+    set:
+      probes.readiness.httpGet.path: /health
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.initialDelaySeconds
+          value: 40
+
+  - it: renders exec liveness probe command
+    values:
+      - ../_shared/common.yaml
+    # probes.liveness.exec.command: [echo, alive]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.exec
+          value:
+            - echo
+            - alive
+
+  - it: omits probes when not configured
+    values:
+      - ../_shared/minimal.yaml
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].livenessProbe
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe

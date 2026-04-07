@@ -1,11 +1,11 @@
-suite: core.workload.replicas
+suite: core.workload.replicas — activeRegion logic
 templates:
   - templates/deployment.yaml
 tests:
   - it: uses configured replicas when activeRegion matches current region
     values:
-      - ../common.values.yaml
-    # common.values.yaml: activeRegion=us-west-1, global.region=us-west-1, replicas=3
+      - ../_shared/common.yaml
+    # common.yaml: activeRegion=us-west-1, global.region=us-west-1, replicas=3
     asserts:
       - equal:
           path: spec.replicas
@@ -13,25 +13,21 @@ tests:
 
   - it: uses 0 replicas when activeRegion does not match current region
     values:
-      - ../common.values.yaml
+      - ../_shared/common.yaml
     set:
       global.region: us-east-1
-      # activeRegion remains us-west-1 from common.values.yaml
+      # activeRegion remains us-west-1 → mismatch → 0
     asserts:
       - equal:
           path: spec.replicas
           value: 0
 
   - it: uses configured replicas when activeRegion is not set
+    values:
+      - ../_shared/minimal.yaml
     set:
-      global.region: us-west-1
-      global.ignoreLookup: "true"
-      port: 5000
       replicas: 5
-      resources.cpu: 250m
-      resources.memory: 500Mi
-      image.url: myrepo/myapp
-      # no activeRegion → or (not .activeRegion) is true → use replicas
+      # no activeRegion → condition is false → use replicas directly
     asserts:
       - equal:
           path: spec.replicas
