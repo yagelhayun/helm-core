@@ -146,17 +146,40 @@ limits:
 {{- end }}
 
 {{/*
+  Resolves the primary port number for probes and other single-port references.
+  When primaryPort is set, uses that named entry from the ports map.
+  When ports has exactly one entry, auto-detects it.
+  When ports has multiple entries and primaryPort is absent, fails the render.
+  Returns empty string when no ports are defined (e.g. exec-only workloads).
+  @param  ports        {object}  map of port name → portConfig
+  @param  primaryPort  {string}  optional name of the primary port
+  @return {string}  port number as a string, or empty string
+*/}}
+{{- define "core.container.primaryPortNumber" -}}
+{{- if .ports }}
+{{- if .primaryPort }}
+{{- (index .ports .primaryPort).port }}
+{{- else if gt (len .ports) 1 }}
+{{- fail "primaryPort is required when multiple ports are defined" }}
+{{- else }}
+{{- $firstKey := first (keys .ports | sortAlpha) }}
+{{- (index .ports $firstKey).port }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
   Renders a single probe spec (httpGet or exec) with timing fields.
   Called by the typed probe helpers below — not intended for direct use.
   @param  probe                  {object}   probe definition from values
-  @param  probe.httpGet          {object}   httpGet probe config { path, port, scheme }
+  @param  probe.httpGet          {object}   httpGet probe config { path, scheme }
   @param  probe.exec             {object}   exec probe config { command }
   @param  probe.failureThreshold {integer}  (default: 3)
   @param  probe.initialDelaySeconds {integer} (default: 40)
   @param  probe.periodSeconds    {integer}  (default: 30)
   @param  probe.successThreshold {integer}  (default: 1)
   @param  probe.timeoutSeconds   {integer}  (default: 20)
-  @param  port                   {integer}  container port used when probe.httpGet.port is absent
+  @param  port                   {integer}  primary port number for httpGet probes
   @return {string}  YAML probe spec block, or empty string if probe is not set
 */}}
 {{- define "core.container.probes" -}}
@@ -241,8 +264,8 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   @param  image.tag        {string}          image tag (default: "latest")
   @param  image.pullPolicy {string}          pull policy (default: "IfNotPresent")
   @param  global.image     {object}          global image fallback for url, tag, and pullPolicy
-  @param  port             {integer}         container port number (optional)
-  @param  portName         {string}          port name (default: "http")
+  @param  ports            {object}          map of port name → { port } (optional)
+  @param  primaryPort      {string}          name of the primary port used by probes (optional when single port)
   @param  command          {array}           entrypoint override (optional)
   @param  args             {array}           argument override (optional)
   @param  envFrom          {object}          bulk env from ConfigMaps/Secrets (see core.container.envFrom)
@@ -256,11 +279,13 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- define "core.container.render" }}
 - name: {{ .name | default (include "core.general.name" .) }}
   image: {{ include "core.container.image" . }}
-  {{- if .port }}
+  {{- with .ports }}
   ports:
-  - containerPort: {{ .port }}
-    name: {{ .portName | default "http" }}
+  {{- range $portName, $portConfig := . }}
+  - containerPort: {{ $portConfig.port }}
+    name: {{ $portName }}
     protocol: TCP
+  {{- end }}
   {{- end }}
   {{- with .command }}
   command: {{ toJson . }}
@@ -278,13 +303,14 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
   {{- with (include "core.container.volumeMounts" .) }}
   volumeMounts: {{- . | indent 4 }}
   {{- end }}
-  {{- with (include "core.container.readinessProbe" .) }}
+  {{- $probeCtx := merge (dict "port" (include "core.container.primaryPortNumber" . | trim)) . }}
+  {{- with (include "core.container.readinessProbe" $probeCtx) }}
   readinessProbe: {{- . | indent 4 }}
   {{- end }}
-  {{- with (include "core.container.livenessProbe" .) }}
+  {{- with (include "core.container.livenessProbe" $probeCtx) }}
   livenessProbe: {{- . | indent 4 }}
   {{- end }}
-  {{- with (include "core.container.startupProbe" .) }}
+  {{- with (include "core.container.startupProbe" $probeCtx) }}
   startupProbe: {{- . | indent 4 }}
   {{- end }}
   imagePullPolicy: {{ (.image).pullPolicy | default ((.global).image).pullPolicy | default "IfNotPresent" }}

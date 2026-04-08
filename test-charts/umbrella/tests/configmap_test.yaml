@@ -13,17 +13,6 @@ tests:
           path: data.FEATURE_FLAG
           value: "true"
 
-  - it: common configmap resolves tpl expression from global.port
-    templates:
-      - charts/common/templates/configmap.yaml
-    values:
-      - ./_shared/common.yaml
-    # common.configMap.data.PORT: "{{ .Values.global.port }}" → "8080"
-    asserts:
-      - equal:
-          path: data.PORT
-          value: "8080"
-
   - it: common configmap resolves tpl expression referencing global volumes
     templates:
       - charts/common/templates/configmap.yaml

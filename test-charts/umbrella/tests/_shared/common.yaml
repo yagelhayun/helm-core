@@ -1,6 +1,5 @@
 global:
   region: us-west-1
-  port: 8080
   ignoreLookup: "true"
 
   image:
@@ -35,11 +34,11 @@ common:
     data:
       FEATURE_FLAG: "true"
       CACHE_DIR: '{{ index .Values.global.volumes.secrets "app-secret" "mountPath" }}'
-      PORT: "{{ .Values.global.port }}"
 
 worker:
-  port: 9999
-  portName: grpc
+  ports:
+    grpc:
+      port: 9999
 
   configMap:
     enabled: true
@@ -61,8 +60,9 @@ worker:
         memory: 64Mi
 
 master:
-  port: 1111
-  portName: api
+  ports:
+    api:
+      port: 1111
 
   configMap:
     enabled: true

@@ -24,14 +24,6 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 1111
-
-  - it: uses master-specific portName
-    templates:
-      - charts/master/templates/deployment.yaml
-    values:
-      - ./_shared/common.yaml
-      - ./_shared/prod.yaml
-    asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].name
           value: api
@@ -95,14 +87,6 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
           value: 9999
-
-  - it: uses worker-specific portName
-    templates:
-      - charts/worker/templates/deployment.yaml
-    values:
-      - ./_shared/common.yaml
-      - ./_shared/prod.yaml
-    asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].name
           value: grpc

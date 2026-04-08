@@ -127,36 +127,6 @@
 {{- end }}
 
 {{/*
-  Renders a volumeClaimTemplates list for a StatefulSet.
-  Each entry becomes a PersistentVolumeClaim created and managed by the
-  StatefulSet controller — one per pod replica, named "<name>-<pod-name>".
-  Note: volumeClaimTemplates is a Kubernetes field only valid on StatefulSet.
-  The helper lives in core so any consumer chart can call it without
-  reimplementing the rendering logic.
-  @param  statefulSet.volumeClaimTemplates  {array}  list of volume claim specs:
-            - name         {string}  claim name (required)
-            - size         {string}  storage request, e.g. "10Gi" (required)
-            - storageClass {string}  StorageClass name (optional — cluster default if omitted)
-            - accessMode   {string}  "ReadWriteOnce" (default) | "ReadWriteMany" | "ReadOnlyMany"
-  @return {string}  YAML list of volumeClaimTemplate objects, or empty string
-*/}}
-{{- define "core.pod.volumeClaimTemplates" -}}
-{{- range (.statefulSet).volumeClaimTemplates }}
-- metadata:
-    name: {{ .name }}
-  spec:
-    {{- with .storageClass }}
-    storageClassName: {{ . }}
-    {{- end }}
-    accessModes:
-      - {{ .accessMode | default "ReadWriteOnce" }}
-    resources:
-      requests:
-        storage: {{ .size }}
-{{- end }}
-{{- end }}
-
-{{/*
   Renders pod annotations.
   Currently adds a checksum/config annotation when an inline ConfigMap is
   defined, causing pods to roll automatically when the ConfigMap data changes.

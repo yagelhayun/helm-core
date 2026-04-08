@@ -6,9 +6,13 @@ metadata:
   name: {{ include "core.service.name" $context }}
   labels: {{ include "core.general.labels" $context | nindent 4 }}
 spec:
+  {{- with $context.ports }}
   ports:
-  - name: {{ $context.portName | default "http" }}
+  {{- range $portName, $portConfig := . }}
+  - name: {{ $portName }}
     protocol: TCP
-    port: {{ $context.port }}
-    targetPort: {{ $context.portName | default "http" }}
+    port: {{ $portConfig.port }}
+    targetPort: {{ $portName }}
+  {{- end }}
+  {{- end }}
   selector: {{ include "core.general.selectorLabels" $context | nindent 4 }}
