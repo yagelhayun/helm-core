@@ -1,9 +1,9 @@
 {{/*
   Renders the volumeMounts list for a container.
-  Iterates over all volume types (secrets, configMaps, empty) and produces
+  Iterates over all volume types (secrets, configMaps, emptyDirs, pvcs, hostPaths) and produces
   one mount entry per volume. When a volume defines a "files" list each file
   gets its own subPath mount under the base mountPath.
-  @param  volumes  {object}  volumes config map with keys: secrets, configMaps, empty
+  @param  volumes  {object}  volumes config map with keys: secrets, configMaps, emptyDirs, pvcs, hostPaths
   @return {string}  YAML list of volumeMount objects, or empty string if no volumes
 */}}
 {{- define "core.container.volumeMounts.base" -}}
@@ -26,7 +26,7 @@
 {{/*
   Renders the full volumeMounts list, including an auto-generated entry for the
   inline ConfigMap when configMap.as is "volume".
-  @param  volumes    {object}  volumes config map with keys: secrets, configMaps, empty
+  @param  volumes    {object}  volumes config map with keys: secrets, configMaps, emptyDirs, pvcs, hostPaths
   @param  configMap  {object}  inline configMap config; when as: volume, appends a mount
   @return {string}  YAML list of volumeMount objects, or empty string if no volumes
 */}}

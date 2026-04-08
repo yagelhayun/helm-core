@@ -1,14 +1,16 @@
 {{/*
   Renders the volumes list for a pod spec.
-  Supports four volume types: secrets (mounted from a Secret), configMaps
-  (mounted from a ConfigMap), empty (emptyDir), and persistentVolumeClaims
-  (referencing an existing PVC). Each type is iterated separately and
-  validated against the cluster during live deployments.
-  @param  $                                      {object}  Helm root context (for cluster lookups)
-  @param  volumes.secrets             {object}  map of Secret name → { mountPath, defaultMode?, files? }
-  @param  volumes.configMaps          {object}  map of ConfigMap name → { mountPath, defaultMode?, files? }
-  @param  volumes.empty               {object}  map of volume name → { mountPath }
-  @param  volumes.persistentVolumeClaims {object}  map of PVC name → { mountPath, readOnly? }
+  Supports five volume types: secrets (mounted from a Secret), configMaps
+  (mounted from a ConfigMap), emptyDirs (emptyDir), pvcs (referencing an
+  existing PVC), and hostPaths (mounting a path from the host node).
+  Each type is iterated separately and validated against the cluster during
+  live deployments.
+  @param  $                       {object}  Helm root context (for cluster lookups)
+  @param  volumes.secrets         {object}  map of Secret name → { mountPath, defaultMode?, files? }
+  @param  volumes.configMaps      {object}  map of ConfigMap name → { mountPath, defaultMode?, files? }
+  @param  volumes.emptyDirs       {object}  map of volume name → { mountPath }
+  @param  volumes.pvcs            {object}  map of PVC name → { mountPath, readOnly? }
+  @param  volumes.hostPaths       {object}  map of volume name → { hostPath, mountPath, type? }
   @return {string}  YAML list of volume objects, or empty string if no volumes
 */}}
 {{- define "core.pod.volumes.base" -}}
@@ -32,17 +34,25 @@
     secretName: {{ $resourceName }}
     defaultMode: {{ ($resourceParams).defaultMode | default $defaultPermissions }}
 {{- end }}
-{{- range $volumeName, $_ := .empty }}
-- name: {{ $volumeName }}
+{{- range $resourceName, $_ := .emptyDirs }}
+- name: {{ $resourceName }}
   emptyDir: {}
 {{- end }}
-{{- range $resourceName, $resourceParams := .persistentVolumeClaims }}
+{{- range $resourceName, $resourceParams := .pvcs }}
 {{- $pvc := include "core.pvc.get" (dict "$" $ "name" $resourceName) | fromYaml }}
 - name: {{ $resourceName }}
   persistentVolumeClaim:
     claimName: {{ $resourceName }}
     {{- if ($resourceParams).readOnly }}
     readOnly: true
+    {{- end }}
+{{- end }}
+{{- range $resourceName, $resourceParams := .hostPaths }}
+- name: {{ $resourceName }}
+  hostPath:
+    path: {{ $resourceParams.hostPath }}
+    {{- with $resourceParams.type }}
+    type: {{ . }}
     {{- end }}
 {{- end }}
 {{- end }}
@@ -52,7 +62,7 @@
   Renders the full volumes list, including an auto-generated entry for the
   inline ConfigMap when configMap.as is "volume".
   @param  $          {object}  Helm root context (for cluster lookups)
-  @param  volumes    {object}  volumes config map with keys: secrets, configMaps, empty
+  @param  volumes    {object}  volumes config map with keys: secrets, configMaps, emptyDirs, pvcs, hostPaths
   @param  configMap  {object}  inline configMap config; when as: volume, appends a volume entry
   @return {string}  YAML list of volume objects, or empty string if no volumes
 */}}
@@ -159,6 +169,18 @@ checksum/config: {{ .configMap.data | toYaml | sha256sum }}
 */}}
 {{- define "core.pod.tolerations" -}}
 {{- with .tolerations }}
+{{- toYaml . }}
+{{- end }}
+{{- end }}
+
+{{/*
+  Renders the hostAliases list for a pod spec.
+  Adds custom entries to /etc/hosts inside all containers of the pod.
+  @param  hostAliases  {array}  list of { ip, hostnames[] } objects
+  @return {string}  YAML hostAliases list, or empty string
+*/}}
+{{- define "core.pod.hostAliases" -}}
+{{- with .hostAliases }}
 {{- toYaml . }}
 {{- end }}
 {{- end }}

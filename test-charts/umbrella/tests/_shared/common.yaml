@@ -18,7 +18,7 @@ global:
         mountPath: /run/secrets
         files:
           - credentials.json
-    empty:
+    emptyDirs:
       writable-tmp:
         mountPath: /tmp/scratch
 
