@@ -5,5 +5,6 @@ type: library
 version: 0.4.0
 maintainers:
   - name: Yagel Hayun
-sources:
-  - https://github.com/yagelhayun/helm-core
+home: https://github.com/yagelhayun/helm-core
+annotations:
+  licenses: Apache-2.0
