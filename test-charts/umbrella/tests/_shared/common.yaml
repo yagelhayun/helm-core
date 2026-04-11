@@ -46,12 +46,12 @@ worker:
       mode: worker
 
   image:
-    url: worker
+    repository: worker
 
   initContainers:
     - name: wait-for-dependency
       image:
-        url: busybox
+        repository: busybox
         tag: "1.36"
       command: ["/bin/sh"]
       args: ["-c", "echo waiting for dependency"]
@@ -70,4 +70,4 @@ master:
       mode: master
 
   image:
-    url: master
+    repository: master

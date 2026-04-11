@@ -309,9 +309,6 @@ podAntiAffinity:
 {{- end }}
 
 {{- define "core.pod.serviceaccount" -}}
-{{- if (.serviceAccount).create }}
-{{- include "core.serviceaccount.name" . }}
-{{- else }}
-{{- (.serviceAccount).name | default "default" }}
-{{- end }}
+{{- $fallbackName := ternary (include "core.serviceaccount.name" .) "default" (eq (.serviceAccount).create true) }}
+{{- (.serviceAccount).name | default $fallbackName }}
 {{- end }}

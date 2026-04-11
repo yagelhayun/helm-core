@@ -334,15 +334,21 @@ timeoutSeconds: {{ .timeoutSeconds | default 20 }}
 {{- end }}
 
 {{/*
-  Renders the full image reference as "url:tag".
-  Falls back to global.image for both url and tag when not set locally.
-  @param  image.url     {string}  image repository URL
-  @param  image.tag     {string}  image tag (default: "latest")
-  @param  global.image  {object}  global image fallback { url, tag }
-  @return {string}  image reference string, e.g. "myrepo/myapp:v1.2.3"
+  Renders the full image reference as "[registry/]repository:tag".
+  Falls back to global.image for registry, repository, and tag when not set locally.
+  @param  image.registry    {string}  optional registry host, e.g. "docker.io", "gcr.io"
+  @param  image.repository  {string}  image name/path, e.g. "myrepo/myapp"
+  @param  image.tag         {string}  image tag (default: "latest")
+  @param  global.image      {object}  global image fallback { registry, repository, tag }
+  @return {string}  image reference string, e.g. "gcr.io/myrepo/myapp:v1.2.3"
 */}}
 {{- define "core.container.image" -}}
-{{- $imageURL := (.image).url | default ((.global).image).url }}
-{{- $imageTag := (.image).tag | default ((.global).image).tag | default "latest" }}
-{{- printf "%s:%s" $imageURL $imageTag }}
+{{- $registry := (.image).registry | default ((.global).image).registry }}
+{{- $repository := (.image).repository | default ((.global).image).repository }}
+{{- $tag := (.image).tag | default ((.global).image).tag | default "latest" }}
+{{- if $registry }}
+{{- printf "%s/%s:%s" $registry $repository $tag }}
+{{- else }}
+{{- printf "%s:%s" $repository $tag }}
+{{- end }}
 {{- end }}

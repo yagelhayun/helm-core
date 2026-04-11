@@ -5,11 +5,11 @@ tests:
 
   # ── Image ────────────────────────────────────────────────────────────────────
 
-  - it: renders image as url:tag
+  - it: renders image as repository:tag
     values:
       - ../_shared/common.yaml
       - ../_shared/prod.yaml
-    # image.url=myrepo/myapp, prod image.tag=v1.2.3
+    # image.repository=myrepo/myapp, prod image.tag=v1.2.3
     asserts:
       - equal:
           path: spec.template.spec.containers[0].image

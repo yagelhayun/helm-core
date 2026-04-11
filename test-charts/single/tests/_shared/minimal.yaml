@@ -16,4 +16,4 @@ resources:
   cpu: 100m
   memory: 256Mi
 image:
-  url: myapp
+  repository: myapp
