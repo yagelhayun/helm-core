@@ -3,6 +3,7 @@ global:
   ignoreLookup: "true"
 
 workload:
+  enabled: true
   type: Deployment
 
 activeRegion: us-west-1
