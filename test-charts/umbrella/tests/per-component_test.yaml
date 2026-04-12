@@ -151,4 +151,4 @@ tests:
       - ./_shared/worker-no-name-override.yaml
     asserts:
       - failedTemplate:
-          errorMessage: "Sub-chart 'worker' must set nameOverride"
+          errorMessage: "Subchart 'worker' must set nameOverride"
