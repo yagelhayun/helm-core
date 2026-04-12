@@ -1,0 +1,15 @@
+global:
+  region: us-west-1
+  ignoreLookup: "true"
+
+worker:
+  ports:
+    grpc:
+      port: 9999
+  image:
+    repository: worker
+    tag: stable
+  replicas: 5
+  resources:
+    cpu: 1
+    memory: 4Gi

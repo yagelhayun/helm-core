@@ -39,7 +39,7 @@
   emptyDir: {}
 {{- end }}
 {{- range $resourceName, $resourceParams := .pvcs }}
-{{- $pvc := include "core.pvc.get" (dict "$" $ "name" $resourceName) | fromYaml }}
+{{- $_ := include "core.pvc.get" (dict "$" $ "name" $resourceName) | fromYaml }}
 - name: {{ $resourceName }}
   persistentVolumeClaim:
     claimName: {{ $resourceName }}
@@ -308,7 +308,21 @@ podAntiAffinity:
 {{- ternary 30 (int .terminationGracePeriodSeconds) (kindIs "invalid" .terminationGracePeriodSeconds) }}
 {{- end }}
 
+{{/*
+  Returns the ServiceAccount name for a pod spec and validates it exists.
+  When serviceAccount.create is not true and an explicit name is configured,
+  looks up the ServiceAccount in the cluster to catch missing references before
+  the workload is deployed. The lookup is skipped during helm template, dry-run,
+  and when global.ignoreLookup is "true".
+  @param  $                      {object}   Helm root context
+  @param  serviceAccount.name    {string}   explicit service account name (optional)
+  @param  serviceAccount.create  {boolean}  whether the chart manages this SA (optional)
+  @return {string}  service account name
+*/}}
 {{- define "core.pod.serviceaccount" -}}
-{{- $fallbackName := ternary (include "core.serviceaccount.name" .) "default" (eq (.serviceAccount).create true) }}
-{{- (.serviceAccount).name | default $fallbackName }}
+{{- $ := (index . "$") -}}
+{{- if and (ne (.serviceAccount).create true) (.serviceAccount).name }}
+{{- $_ := include "core.serviceaccount.get" (dict "$" $ "name" (.serviceAccount).name) }}
+{{- end }}
+{{- include "core.serviceaccount.name" . }}
 {{- end }}

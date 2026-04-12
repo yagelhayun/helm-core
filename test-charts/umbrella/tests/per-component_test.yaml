@@ -143,3 +143,12 @@ tests:
       - equal:
           path: spec.selector.matchLabels["app.kubernetes.io/name"]
           value: worker
+
+  - it: fails when sub-chart does not set nameOverride
+    templates:
+      - charts/worker/templates/service.yaml
+    values:
+      - ./_shared/worker-no-name-override.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "Sub-chart 'worker' must set nameOverride"

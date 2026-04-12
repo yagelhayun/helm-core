@@ -1,11 +1,34 @@
 {{/*
-  Returns the chart name, used as the base name for all resources.
+  Returns "true" when the chart is the root chart, "false" when it is a sub-chart.
+  Detected by comparing the first path segment of $.Template.Name (always the
+  root chart's directory name) against $.Chart.Name.
   @param  $  {object}  Helm root context
-  @return {string}  $.Chart.Name
+  @return {string}  "true" | "false"
+*/}}
+{{- define "core.general.isRootChart" -}}
+{{- $ := (index . "$") -}}
+{{- eq (splitList "/" (default "" $.Template.Name) | first) (default "" $.Chart.Name) }}
+{{- end }}
+
+{{/*
+  Returns the base name used for all resources.
+  For root charts, defaults to $.Release.Name so resources are named after the
+  deployment with no configuration required.
+  For sub-charts, nameOverride is required — there is no sensible automatic
+  default since all sub-charts share the same release name, and silently
+  defaulting to the chart name would risk label collisions if the same chart
+  is included twice under different aliases.
+  @param  $             {object}  Helm root context
+  @param  nameOverride  {string}  optional for root charts; required for sub-charts
+  @return {string}  resource base name
 */}}
 {{- define "core.general.name" -}}
 {{- $ := (index . "$") -}}
-{{- $.Chart.Name }}
+{{- if eq (include "core.general.isRootChart" .) "true" }}
+{{- .nameOverride | default $.Release.Name }}
+{{- else }}
+{{- required (printf "Subchart '%s' must set nameOverride" $.Chart.Name) .nameOverride }}
+{{- end }}
 {{- end }}
 
 {{/*

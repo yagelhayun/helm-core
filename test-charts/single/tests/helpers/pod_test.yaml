@@ -19,7 +19,7 @@ tests:
             whenUnsatisfiable: ScheduleAnyway
             labelSelector:
               matchLabels:
-                app.kubernetes.io/name: core-test-single
+                app.kubernetes.io/name: RELEASE-NAME
       - contains:
           path: spec.template.spec.topologySpreadConstraints
           content:
@@ -28,7 +28,7 @@ tests:
             whenUnsatisfiable: ScheduleAnyway
             labelSelector:
               matchLabels:
-                app.kubernetes.io/name: core-test-single
+                app.kubernetes.io/name: RELEASE-NAME
 
   - it: omits topologySpreadConstraints when set to empty list
     values:
